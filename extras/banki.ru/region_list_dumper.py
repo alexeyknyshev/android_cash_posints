@@ -4,6 +4,8 @@ import os, sys, sqlite3
 import json
 import requests
 import time
+import struct
+import unicodedata
 
 def getNameTrFromRegionUrl(regionUrl):
   nameTr = regionUrl
@@ -205,26 +207,14 @@ def resolveTownNameDup(townsList, regionsMap):
         print("Error: Dup town.name for town without region_id\n" + str(town.name))
 
 def getRegionNameByCoord(longitude, latitude):
-  geoUrlMask = "http://www.mapquestapi.com/geocoding/v1/reverse?key=h0SsXqvIhbnHQx8iZrek7VjnVOdEDC4u&callback=renderReverse&location=%f,%f"
+  geoUrlMask = "http://www.mapquestapi.com/geocoding/v1/reverse?key=h0SsXqvIhbnHQx8iZrek7VjnVOdEDC4u&location=%f,%f"
   url = geoUrlMask % (longitude, latitude)
   r = requests.get(url)
-  print(r.text())
   responseJson = r.json()
-
-  featureMember = responseJson['renderReverse']['results']['locations']['adminArea3'].decode("unicode-escape")
-  return featureMember
-
-  #for geoObj in featureMember:
-  #  try:
-  #    geoObjInternal = geoObj['GeoObject']
-  #    addrDet = geoObjInternal['metaDataProperty']['GeocoderMetaData']['AddressDetails']
-  #    return addrDet['Country']['AdministrativeArea']['AdministrativeAreaName']
-  #  except KeyError:
-  #    continue
-
-#  errStr = "AdministrativeAreaName has not found in geocode response:\n\trequest: " + url + "\n\tresponse:\n" + str(responseJson)
-#  print(errStr, file=sys.stderr)
-#  return 0
+  regionName = responseJson['results'][0]['locations'][0]['adminArea3'].encode().decode('unicode-escape')
+  print(type(regionName))
+  print(regionName)
+  return regionName
 
 def getRegionIdByName(regionsMap, regionName, index):
   for (region_id, region_name) in regionsMap.items():
@@ -280,9 +270,9 @@ if __name__ == "__main__":
   regionsJson = sys.argv[1]
   outputDB = sys.argv[2]
 
-  #if os.path.isfile(outputDB):
-  #  os.remove(outputDB)
-  #  print('removed file:', outputDB)
+  if os.path.isfile(outputDB):
+    os.remove(outputDB)
+    print('removed file:', outputDB)
 
   index = 1
   tuple_index = 1
@@ -304,7 +294,7 @@ if __name__ == "__main__":
   currentIndex = 500
   currentIndexStep = 500
 
-  for t in data:
+  for t in data[:5]:
     row = makeDBRow(t)
 
     townId = int(row[0])
