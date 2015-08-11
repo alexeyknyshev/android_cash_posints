@@ -212,8 +212,6 @@ def getRegionNameByCoord(longitude, latitude):
   r = requests.get(url)
   responseJson = r.json()
   regionName = responseJson['results'][0]['locations'][0]['adminArea3'].encode().decode('unicode-escape')
-  print(type(regionName))
-  print(regionName)
   return regionName
 
 def getRegionIdByName(regionsMap, regionName, index):
