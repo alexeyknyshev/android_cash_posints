@@ -1,9 +1,11 @@
 TEMPLATE = app
 
-QT += qml quick widgets location sql svg
+QT += qml quick location sql svg
 
-SOURCES += main.cpp \
-    banklistsqlmodel.cpp
+SOURCES += src/main.cpp \
+    src/banklistsqlmodel.cpp \
+    src/townlistsqlmodel.cpp \
+    src/serverapi.cpp
 
 RESOURCES += qml.qrc
 
@@ -25,6 +27,8 @@ DISTFILES += \
 ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
 
 HEADERS += \
-    banklistsqlmodel.h
+    src/banklistsqlmodel.h \
+    src/townlistsqlmodel.h \
+    src/serverapi.h
 
 QMAKE_CXXFLAGS += -std=c++11

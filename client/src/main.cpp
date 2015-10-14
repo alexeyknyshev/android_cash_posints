@@ -9,6 +9,19 @@
 #include <QTableView>
 
 #include "banklistsqlmodel.h"
+#include "townlistsqlmodel.h"
+
+QStringList getSqlQuery(const QString &queryFileName)
+{
+    QFile queryFile(queryFileName);
+    if (!queryFile.open(QFile::ReadOnly | QFile::Text))
+    {
+        QTextStream(stderr) << "Cannot open " << queryFileName << " file" << endl;
+        return QStringList();
+    }
+    QString queryStr = queryFile.readAll();
+    return queryStr.split(";", QString::SkipEmptyParts);
+}
 
 int main(int argc, char *argv[])
 {
@@ -30,37 +43,31 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    QFile banksQueryFile(":/bank.sql");
-    if (!banksQueryFile.open(QFile::ReadOnly | QFile::Text))
+    foreach (QString sqlFile, QStringList() << ":/banks.sql" << ":/town.sql")
     {
-        qFatal("Cannot open bank.sql file");
-        return 2;
-    }
-    QString queryStr = banksQueryFile.readAll();
-    QStringList q_list = queryStr.split(";", QString::SkipEmptyParts);
-
-    QSqlQuery q;
-    db.transaction();
-    foreach (QString qStr, q_list) {
-        db.exec(qStr);
-    }
-    db.commit();
-
-    q.exec("SELECT name, url, tel, tel_description FROM banks");
-    while (q.next())
-    {
-        qDebug() << q.value(2).toString();
+        QStringList q_list = getSqlQuery(sqlFile);
+        db.transaction();
+        foreach (QString qStr, q_list)
+        {
+            db.exec(qStr);
+        }
+        db.commit();
     }
 
     BankListSqlModel *bankListModel = new BankListSqlModel(banksConnName);
+    TownListSqlModel *townListModel = new TownListSqlModel(banksConnName);
 
     engine.rootContext()->setContextProperty("bankListModel", bankListModel);
-    engine.load(QUrl("qrc:/LeftMenu.qml"));
+    engine.rootContext()->setContextProperty("townListModel", townListModel);
+//    engine.load(QUrl("qrc:/LeftMenu.qml"));
 //    engine.load(QUrl(QStringLiteral("qrc:/BanksList.qml")));
-//    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+//    engine.load(QUrl(QStringLiteral("qrc:/TownList.qml")));
+    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+//    engine.load(QUrl(QStringLiteral("qrc:/UpperSwitcher.qml")));
 
     const int exitStatus = app.exec();
 
+    delete townListModel;
     delete bankListModel;
 
     db.close();

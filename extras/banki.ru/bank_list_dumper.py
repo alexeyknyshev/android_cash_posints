@@ -9,6 +9,7 @@ class Bank:
     self.url = ""              # internal banki.ru url
     self.tel = ""              # tel number
     self.tel_description = ""  # tel number description
+    self.licence = ""          # bank licence number
     
   def setTel(self, telStr):
     if len(telStr) == 0:
@@ -28,13 +29,13 @@ class Bank:
     self.tel_description = telDescrStr
 
   def __str__(self):
-    return "\tname\t\t= %s\n\turl\t\t= %s\n\ttel\t\t= %s\n\ttel_descr\t= %s\n" % (self.name, self.url, self.tel, self.tel_description)
+    return "\tname\t\t= %s\n\turl\t\t= %s\n\ttel\t\t= %s\n\ttel_descr\t= %s\n\tlicence\t= %s" % (self.name, self.url, self.tel, self.tel_description, self.licence)
   
   def __repr__(self):
     return "\n{\n" + self.__str__() + "}"
   
   def toTuple(self):
-    return (self.name, self.url, self.tel, self.tel_description)
+    return (self.name, self.url, self.tel, self.tel_description, self.licence)
 
 #def parseBankSiteUrl
 
@@ -57,11 +58,16 @@ def parseHtmlData(data):
     bank_tel_descr = ""
     bank_tel = ""
     bank_url = ""
+    bank_licence = ""
     for span in bank_span:
+      if len(span.attrs) == 0:
+        licence_list = [s for s in span.getText().split() if s.isdigit()]
+        if len(licence_list) != 0:
+          bank_licence = licence_list[0]
+
       if span.has_attr('title'):
         bank_tel_descr = span['title']
         bank_tel = span.getText()
-        break
       
     if bank_name.has_attr('href'):
       bank_url = bank_name['href']
@@ -71,6 +77,7 @@ def parseHtmlData(data):
     bank.url  = bank_url
     bank.setTel(bank_tel)
     bank.setTelDescription(bank_tel_descr)
+    bank.licence = bank_licence
     
     result.append(bank)
   
@@ -99,22 +106,32 @@ if __name__ == "__main__":
   
   bd = sqlite3.connect(outputDB)
   c = bd.cursor()
-  c.execute('CREATE TABLE banks (id integer primary key autoincrement, name text, url text, tel text, tel_description text)')
+  c.execute('CREATE TABLE banks (id integer primary key autoincrement, name text, url text, tel text, tel_description text, licence integer unique)')
   
   prepared_tuples = []
   
   for (dirname, _2, files) in os.walk(dataDir):
+    files.sort(key=lambda x: os.stat(os.path.join(dirname, x)).st_mtime)
     for f in files:
+      if not f.endswith('html'):
+        continue
+
       path = os.path.join(dirname, f)
-      data = parseHtmlData(open("data/page_%i.html.out" % (index), 'r').read())
+      print('processing:', path)
+      try:
+        data = parseHtmlData(open(path, 'r').read())
+      except UnicodeDecodeError:
+        print('failed to read file: ' + path)
+        raise
+
       for bank in data:
         prepared_tuples.append((tuple_index,) + bank.toTuple())
         tuple_index += 1
       count += len(data)
       index += 1
   
-  print(prepared_tuples)
-  c.executemany('INSERT INTO banks VALUES (?,?,?,?,?)', prepared_tuples)
+  #print(prepared_tuples)
+  c.executemany('INSERT OR IGNORE INTO banks VALUES (?,?,?,?,?,?)', prepared_tuples)
   bd.commit()
   bd.close()
       

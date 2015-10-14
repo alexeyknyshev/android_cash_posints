@@ -6,11 +6,17 @@ import QtSensors 5.3
 import QtGraphicalEffects 1.0
 
 Item {
+    id: topView
     width: 480
     height: 800
     visible: true
 
     focus: true
+
+    property bool active: true
+
+    signal clicked()
+    signal menuClicked()
 
     Keys.onEscapePressed: Qt.quit()
     Keys.onPressed: {
@@ -199,14 +205,18 @@ Item {
             onParentChanged: oldZoom = parent.zoomLevel
 
             onPinchStarted: {
-                console.log("pinch started")
-                oldZoom = map.zoomLevel
+                if (topView.active) {
+                    console.log("pinch started")
+                    oldZoom = map.zoomLevel
+                }
             }
 
             onPinchUpdated: {
-                console.log("pinch")
-                console.log("scale: " + pinch.scale)
-                map.zoomLevel = oldZoom + Math.log(pinch.scale) / Math.log(2)
+                if (topView.active) {
+                    console.log("pinch")
+                    console.log("scale: " + pinch.scale)
+                    map.zoomLevel = oldZoom + Math.log(pinch.scale) / Math.log(2)
+                }
             }
 
             MouseArea {
@@ -215,6 +225,11 @@ Item {
                 z: parent.z + 1
 
                 onClicked: {
+                    topView.clicked()
+
+                    if (!topView.active)
+                        return
+
                     if (parent.zooming)
                     {
                         parent.zooming = false
@@ -237,6 +252,8 @@ Item {
 //                    }
 //                }
                 onDoubleClicked: {
+                    if (!topView.active)
+                        return
 //                    console.log("double click!")
 
                     var coord = map.toCoordinate(Qt.point(mouseX, mouseY))
@@ -251,6 +268,9 @@ Item {
                     map.zoom(map.zoomLevel + 1)
                 }
                 onPositionChanged: {
+                    if (!topView.active)
+                        return
+
                     if (!map.panActive) {
                         map.panActive = true
                         map.panLastX = mouseX
@@ -308,8 +328,8 @@ Item {
 
             MouseArea {
                 anchors.fill: parent
-                onClicked: map.zoom(map.zoomLevel - 1)
-                onPressed: parent.scale = 0.9
+                onClicked: if (topView.active) map.zoom(map.zoomLevel - 1)
+                onPressed: if (topView.active) parent.scale = 0.9
                 onReleased: parent.scale = 1.0
             }
 
@@ -350,8 +370,8 @@ Item {
 
             MouseArea {
                 anchors.fill: parent
-                onClicked: map.zoom(map.zoomLevel + 1)
-                onPressed: parent.scale = 0.9
+                onClicked: if (topView.active) map.zoom(map.zoomLevel + 1)
+                onPressed: if (topView.active) parent.scale = 0.9
                 onReleased: parent.scale = 1.0
             }
         }
@@ -486,6 +506,9 @@ Item {
              MouseArea {
                  anchors.fill: parent
                  onClicked: {
+                     if (!topView.active)
+                         return
+
                      map.findMe()
                      if (positionSource.locationAvaliable) {
                         findMeButtonRotationAnim.start()
@@ -495,6 +518,203 @@ Item {
                  onReleased: parent.scale = 1.0
              }
         }
+    }
+
+    Rectangle {
+        id: searchLineEditContainer
+
+        z: parent.z + 2
+
+        anchors.top: parent.top
+        anchors.topMargin: anchors.leftMargin
+        anchors.left: parent.left
+        anchors.leftMargin: parent.width * 0.02
+        anchors.right: parent.right
+        anchors.rightMargin: anchors.leftMargin
+        anchors.bottomMargin: anchors.leftMargin
+
+        radius: height / 20
+        height: searchLineEdit.contentHeight * 2
+
+//        color: "lightgray"
+
+        TextInput {
+            id: searchLineEdit
+
+            z: parent.z + 1
+
+            anchors.top: parent.top
+            anchors.topMargin: searchLineEdit.contentHeight * 0.5
+            anchors.left: menuButton.right
+            anchors.leftMargin: searchLineEdit.contentHeight * 0.5
+            anchors.right: clearButton.left
+            anchors.rightMargin: searchLineEdit.contentHeight * 0.5
+            anchors.bottomMargin: searchLineEdit.contentHeight * 0.5
+            anchors.bottom: parent.bottom
+
+            echoMode: TextInput.Normal
+
+            font.pixelSize: Math.max(topView.height, topView.width) / (15 * 2) > 18 ?
+                            Math.max(topView.height, topView.width) / (15 * 2) : 18
+
+            property bool isUserTextShowed: false
+            property string placeHolderText: qsTr("Искать")
+            property string userText: ""
+
+            wrapMode: Text.NoWrap
+
+            Component.onCompleted: {
+                text = placeHolderText
+                color = "lightgray"
+            }
+
+            onFocusChanged: {
+                if (searchLineEdit.focus) {
+                    text = userText
+                    color = "black"
+                    isUserTextShowed = true
+                } else {
+                    userText = text
+                    if (userText == "") {
+                        text = placeHolderText
+                        color = "lightgray"
+                        isUserTextShowed = false
+                    }
+                }
+            }
+
+            function setFirstLetterUpper(upper)
+            {
+                if (upper && text != "") {
+                    text = text.charAt(0).toUpperCase() + text.slice(1)
+                }
+            }
+
+            onDisplayTextChanged: {
+                if (displayText === "" || displayText === placeHolderText) {
+                    bankListModel.setFilter("")
+                } else {
+                    bankListModel.setFilter(displayText)
+                }
+            }
+        } // TextInput
+
+        Rectangle {
+            id: menuButton
+            z: parent.z + 1
+
+            anchors.left: parent.left
+            anchors.leftMargin: searchLineEdit.contentHeight * 0.2
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: searchLineEdit.contentHeight * 0.3
+            anchors.top: parent.top
+            anchors.topMargin: searchLineEdit.contentHeight * 0.3
+            width: height
+
+            Rectangle {
+                id: menuButtonTopRect
+                anchors.top: parent.top
+                anchors.topMargin: parent.height * 2 / 9
+                anchors.left: parent.left
+                anchors.leftMargin: parent.width * 0.2
+                height: parent.height / 9
+                width: parent.width * 0.6
+                color: "gray"
+            }
+
+            Rectangle {
+                id: menuButtonCenterRect
+                anchors.top: menuButtonTopRect.bottom
+                anchors.topMargin: parent.height / 9
+                anchors.left: parent.left
+                anchors.leftMargin: parent.width * 0.2
+                height: menuButtonTopRect.height
+                width: parent.width * 0.6
+                color: "gray"
+            }
+
+            Rectangle {
+                anchors.top: menuButtonCenterRect.bottom
+                anchors.topMargin: parent.height / 9
+                anchors.left: parent.left
+                anchors.leftMargin: parent.width * 0.2
+                height: menuButtonTopRect.height
+                width: parent.width * 0.6
+                color: "gray"
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    console.log("menu clicked")
+                    topView.menuClicked()
+                }
+            }
+        }
+
+        Rectangle {
+            id: clearButton
+            color: "transparent"
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: searchLineEdit.topMargin
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: searchLineEdit.bottomMargin
+            width: height
+            opacity: searchLineEdit.isUserTextShowed && searchLineEdit.displayText != "" ? 1.0 : 0.0
+
+            Behavior on opacity {
+                NumberAnimation { duration: 100 }
+            }
+
+            Rectangle {
+                anchors.centerIn: parent
+                height: parent.width * 0.05
+                width: parent.width * 0.5
+                color: "gray"
+                rotation: 45
+            }
+            Rectangle {
+                anchors.centerIn: parent
+                height: parent.width * 0.05
+                width: parent.width * 0.5
+                color: "gray"
+                rotation: -45
+            }
+
+            states: State {
+                name: "pressed"
+                PropertyChanges {
+                    target: clearButton
+                    color: "lightgray"
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    searchLineEdit.userText = ""
+                    searchLineEdit.text = ""
+                }
+
+                onHoveredChanged: {
+                    if (containsMouse) {
+                        parent.state = "pressed"
+                    } else {
+                        parent.state = ""
+                    }
+                }
+            }
+        }
+    }
+
+    RectangularGlow {
+        z: searchLineEditContainer.z - 1
+        anchors.fill: searchLineEditContainer
+        glowRadius: searchLineEditContainer.height / 5
+        spread: 0.3
+        color: "#11000055"
+        cornerRadius: glowRadius
     }
 }
 

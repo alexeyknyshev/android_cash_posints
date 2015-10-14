@@ -2,8 +2,7 @@
 #define BANKLISTSQLMODEL_H
 
 #include <QtSql/QSqlQueryModel>
-
-#include <QSqlQuery>
+#include <QtSql/QSqlQuery>
 
 class BankListSqlModel : public QSqlQueryModel
 {
@@ -13,9 +12,11 @@ public:
     enum Roles {
         IdRole = Qt::UserRole,
         NameRole,
-        UrlRole,
+        LicenceRole,
+        NameTrRole,
+        RaitingRole,
+        NameTrAltRole,
         TelRole,
-        TelDescrRole
     };
 
     explicit BankListSqlModel(QString connectionName);

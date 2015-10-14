@@ -2,6 +2,10 @@ import QtQuick 2.4
 import QtQuick.Controls 1.3
 import QtQuick.Window 2.2
 import QtQuick.Dialogs 1.2
+import QtGraphicalEffects 1.0
+import QtQml 2.2
+
+import "viewloadercreator.js" as ViewLoaderCreator
 
 ApplicationWindow {
     title: qsTr("Cash Points")
@@ -9,13 +13,57 @@ ApplicationWindow {
     height: 480
     visible: true
 
+    property date lastExitAttempt: new Date()
+    property int backExitThreathold: 500
+
     onClosing: {
-        close.accepted = mapView.aboutToClose()
+        if (Qt.platform.os == "android") {
+            if (!flipable.flipped) {
+                flipable.flipped = true
+            } else {
+                console.log("exit")
+                var currentTime = new Date()
+                if (currentTime.valueOf() - lastExitAttempt.valueOf() < backExitThreathold) {
+                    close.accepted = true
+                    return
+                }
+                lastExitAttempt = currentTime
+            }
+            close.accepted = false
+        } else {
+            close.accepted = mapView.aboutToClose()
+        }
+    }
+    Keys.onReleased: {
+        if (event.key == Qt.Key_Back) {
+            console.log("Back button captured - wunderbar !")
+            event.accepted = true
+        }
     }
 
     Flipable {
         id: flipable
         anchors.fill: parent
+        //focus: true
+
+        function onBankListCreated() {
+
+        }
+
+        Keys.onEscapePressed: {
+            if (flipped) {
+                flipped = !flipped
+            }
+        }
+
+        Keys.onPressed: {
+            console.log("here")
+            if (event.key === Qt.Key_Tab) {
+                if (!flipped) {
+                    flipped = !flipped
+                }
+            }
+        }
 
         property bool flipped: false
         states: State
@@ -33,7 +81,7 @@ ApplicationWindow {
                         NumberAnimation {
                             target: rotation
                             properties: "angle"
-                            duration: 2000
+                            duration: 1500
                             easing.type: Easing.InOutQuad
                         }
                      }
@@ -155,6 +203,56 @@ ApplicationWindow {
             id: mapView
             enabled: parent.flipped
             anchors.fill: parent
+
+            active: !leftMenu.visible
+
+            LeftMenu {
+                id: leftMenu
+                x: 0
+                z: mapView.z + 10
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: parent.width * 0.6
+
+                onItemClicked: {
+                    if (itemName && itemName.length > 0) {
+                        ViewLoaderCreator.createViewLoader(function(loader) {
+                            loader.setView(itemName)
+                        })
+                        flipable.flipped = !flipable.flipped
+                    }
+                }
+            }
+
+            RectangularGlow {
+                visible: leftMenu.visible
+                anchors.fill: leftMenu
+                z: leftMenu.z - 1
+                glowRadius: leftMenu.height / 10
+                spread: 0.1
+                color: "#0000000FF"
+                cornerRadius: glowRadius
+                opacity: (leftMenu.x + leftMenu.width) / (mapView.width * 0.6)
+            }
+
+            onClicked: {
+                leftMenu.state = "hidden"
+            }
+
+            onMenuClicked: {
+                leftMenu.state = ""
+            }
         }
+
+
+//        Desaturate {
+//            anchors.top: mapView.top
+//            anchors.left: leftMenu.right
+//            anchors.right: mapView.right
+//            anchors.bottom: mapView.bottom
+//            source: mapView
+//            desaturation: 0.8
+////            z: leftMenu.z - 1
+//        }
     }
 }

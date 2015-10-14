@@ -2,10 +2,10 @@ import QtQuick 2.4
 import QtQuick.Controls 1.3
 import QtGraphicalEffects 1.0
 
-ApplicationWindow {
-    visible: true
-    width: 800
-    height: 600
+//ApplicationWindow {
+//    visible: true
+//    width: 800
+//    height: 600
 //    visibility: "FullScreen"
 
 Rectangle {
@@ -36,7 +36,7 @@ Rectangle {
 
             anchors.top: parent.top
             anchors.topMargin: bankFilterEdit.contentHeight * 0.5
-            anchors.left: parent.left
+            anchors.left: upperSwitcher.right
             anchors.leftMargin: bankFilterEdit.contentHeight * 0.5
             anchors.right: clearButton.left
             anchors.rightMargin: bankFilterEdit.contentHeight * 0.5
@@ -49,7 +49,7 @@ Rectangle {
                             Math.max(topRect.height, topRect.width) / (15 * 3) : 18
 
             property bool isUserTextShowed: false
-            property string placeHolderText: qsTr("Банк, сайт, номер тел...")
+            property string placeHolderText: qsTr("Банк, номер лицезии, номер тел...")
             property string userText: ""
 
             wrapMode: Text.NoWrap
@@ -74,6 +74,17 @@ Rectangle {
                 }
             }
 
+            function setFirstLetterUpper(upper)
+            {
+                if (upper && text != "") {
+                    text = text.charAt(0).toUpperCase() + text.slice(1)
+                }
+            }
+
+            onTextChanged: {
+                setFirstLetterUpper(upperSwitcher.state == "enabled")
+            }
+
             onDisplayTextChanged: {
                 if (displayText === "" || displayText === placeHolderText) {
                     bankListModel.setFilter("")
@@ -82,6 +93,26 @@ Rectangle {
                 }
             }
         } // TextInput
+
+        UpperSwitcher {
+            id: upperSwitcher
+
+            anchors.left: parent.left
+            anchors.leftMargin: bankFilterEdit.contentHeight * 0.2
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: bankFilterEdit.contentHeight * 0.2
+            anchors.top: parent.top
+            anchors.topMargin: bankFilterEdit.contentHeight * 0.3
+            width: height
+
+            onEnabledChanged: {
+                bankFilterEdit.setFirstLetterUpper(isEnabled)
+            }
+
+            onParentChanged: {
+                state = "enabled"
+            }
+        }
 
         Rectangle {
             id: clearButton
@@ -178,7 +209,7 @@ Rectangle {
                 model: bankListModel
                 delegate: Rectangle {
                     id: itemContatiner
-                    height: itemText.contentHeight * 3
+                    height: (itemText.contentHeight * (itemText.lineCount + 2) / itemText.lineCount)
                     width: parent.width
                     Rectangle {
                         anchors.top: parent.top
@@ -189,15 +220,16 @@ Rectangle {
 
                     Image {
                         id: itemImage
-                        source: "ico/ico/logo/" + model.bank_url.replace('/banks/bank/', '').replace('/', '') + ".svg"
+                        source: "ico/ico/logo/" + model.bank_name_tr_alt + ".svg"
                         smooth: true
                         fillMode: Image.PreserveAspectFit
                         anchors.left: parent.left
                         anchors.leftMargin: bankFilterEdit.anchors.leftMargin
                         anchors.top: parent.top
                         anchors.topMargin: bankFilterEdit.anchors.topMargin
-                        anchors.bottom: parent.bottom
+//                        anchors.bottom: parent.bottom
                         anchors.bottomMargin: bankFilterEdit.anchors.bottomMargin
+                        height: bankListView.height / 15
                         width: height
                     }
 
@@ -207,6 +239,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
 
                         anchors.left: itemImage.right
+                        //anchors.right: itemTelNumber.left
                         anchors.right: parent.right
                         anchors.rightMargin: bankFilterEdit.anchors.rightMargin
                         anchors.leftMargin: bankFilterEdit.anchors.leftMargin
@@ -217,9 +250,29 @@ Rectangle {
                                                       '</b>')
                         textFormat: Text.StyledText
                         wrapMode: Text.WordWrap
+                        font.pixelSize: Math.max(topRect.height, topRect.height) / (15 * 3) > 18 ?
+                                        Math.max(topRect.height, topRect.height) / (15 * 3) : 18
+                    }
+
+                    /*Label {
+                        id: itemTelNumber
+
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        //anchors.left: itemText.right
+                        anchors.right: parent.right
+                        anchors.leftMargin: bankFilterEdit.anchors.leftMargin
+                        anchors.rightMargin: bankFilterEdit.anchors.rightMargin
+
+                        verticalAlignment: Text.AlignRight
+                        text: model.bank_tel.replace(bankFilterEdit.displayText,
+                                                    '<b>' + bankFilterEdit.displayText +
+                                                    '</b>')
+                        textFormat: Text.StyledText
+                        wrapMode: Text.NoWrap
                         font.pixelSize: Math.max(topRect.height, topRect.width) / (15 * 3) > 18 ?
                                         Math.max(topRect.height, topRect.width) / (15 * 3) : 18
-                    }
+                    }*/
 
                     states: State {
                         name: "clicked"
@@ -253,4 +306,4 @@ Rectangle {
         } // Rectangle
     }
 }
-} // ApplicationWindow
+//} // ApplicationWindow

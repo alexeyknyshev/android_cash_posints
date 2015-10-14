@@ -1,0 +1,14 @@
+{
+    "TownsDataBase": "./data/towns.db",
+    "CashPointsDataBase": "./data/cp.db",
+    "RequestsDataBase": "./logs/requests.db",
+    "CertificateDir": "./cert",
+    "Port": 8080,
+    "UserLoginMinLength": 4,
+    "UserPwdMinLength": 4,
+    "UseTLS": false,
+    "RedisHost": "localhost:6379",
+    "RedisScriptsDir": "./redis_scripts",
+    "ReqResLogTTL": 60,
+    "UUID_TTL": 250
+}
