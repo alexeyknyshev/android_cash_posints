@@ -1,0 +1,10 @@
+---
+- config:
+    - testset: "Testing backend service"
+
+- test:
+    - name: "Get towns list"
+    - group: "TownList"
+    - url: "/towns"
+    - method: "GET"
+    - headers: { Content-type: "application/json", Id: 1 }

@@ -1,10 +1,11 @@
 #ifndef BANKLISTSQLMODEL_H
 #define BANKLISTSQLMODEL_H
 
-#include <QtSql/QSqlQueryModel>
 #include <QtSql/QSqlQuery>
 
-class BankListSqlModel : public QSqlQueryModel
+#include "listsqlmodel.h"
+
+class BankListSqlModel : public ListSqlModel
 {
     Q_OBJECT
 
@@ -14,28 +15,51 @@ public:
         NameRole,
         LicenceRole,
         NameTrRole,
-        RaitingRole,
+        RatingRole,
+        RegionName,
         NameTrAltRole,
         TelRole,
+        IcoPath,
+
+        RoleLast
     };
 
-    explicit BankListSqlModel(QString connectionName);
-
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    BankListSqlModel(QString connectionName, ServerApi *api);
 
     QVariant data(const QModelIndex &item, int role) const override;
 
-public slots:
-    void setFilter(QString filterStr);
+signals:
+    void updateBanksIdsRequest(quint32 leftAttempts);
+    void updateBanksDataRequest(quint32 leftAttempts);
+    void updateBankIcoRequest(quint32 leftAttempts, quint32 bankId);
+
+    void bankIdsUpdated(quint32 leftAttempts);
 
 protected:
-    QHash<int, QByteArray> roleNames() const override;
+    void updateFromServerImpl(quint32 leftAttempts) override;
+    void setFilterImpl(const QString &filter) override;
+
+    int getLastRole() const override { return RoleLast; }
+
+private slots:
+    void updateBanksIds(quint32 leftAttempts);
+    void updateBanksData(quint32 leftAttempts);
+    void updateBankIco(quint32 leftAttempts, quint32 bankId);
 
 private:
-    QHash<int, QByteArray> mRoleNames;
-    QString mQueryMask;
-    const QString mConnectionName;
+    void emitUpdateBanksIds(quint32 leftAttempts)
+    { emit updateBanksIdsRequest(leftAttempts); }
+    void emitBankIdsUpdated(quint32 leftAttempts)
+    { emit bankIdsUpdated(leftAttempts); }
+    void emitUpdateBanksData(quint32 leftAttempts)
+    { emit updateBanksDataRequest(leftAttempts); }
+    void emitUpdateBankIco(quint32 leftAttempts, quint32 bankId)
+    { emit updateBankIcoRequest(leftAttempts, bankId); }
+
+    QList<int> mBanksToProcess;
+
     QSqlQuery mQuery;
+    QSqlQuery mQueryUpdateBanks;
 };
 
 #endif // BANKLISTSQLMODEL_H

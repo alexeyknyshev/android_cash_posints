@@ -1,0 +1,30 @@
+---
+- config:
+    - testset: "Testing backend service"
+
+- test:
+    - name: "User login success"
+    - group: "UserLogin"
+    - url: "/login"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 1 }
+    - body: '{"login":"i_am_stupid","password":"12345"}'
+
+- test:
+    - name: "User invalid password"
+    - group: "UserLogin"
+    - url: "/login"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 2 }
+    - body: '{"login":"i_am_stupid","password":"wrong!"}'
+    - expected_status: 417
+
+- test:
+    - name: "User does not exist"
+    - group: "UserLogin"
+    - url: "/login"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 3 }
+    - body: '{"login":"i_do_not_exist","password":"pffff"}'
+    - expected_status: 417
+    - expected_body: '{}'

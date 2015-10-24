@@ -7,6 +7,7 @@
 #include <QtCore/QUrl>
 #include <QtCore/QDateTime>
 #include <QtCore/QJsonObject>
+#include <QtCore/QMap>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -49,12 +50,14 @@ public:
 
     typedef std::function<void(HttpStatusCode code, const QByteArray &data, bool timeOut)> Callback;
 
+    qint64 sendRequest(QString path, QJsonObject data, ServerApi::Callback callback);
+
 signals:
     void responseReceived(qint64 requestId);
     void requestTimedout(qint64 requestId);
 
 public slots:
-    qint64 sendRequest(QString path, QJsonObject data, ServerApi::Callback callback);
+    void postRequest(QString path, QJsonObject data, ServerApi::Callback Callback);
     void update();
 
 private slots:
@@ -75,7 +78,7 @@ private:
         Callback callback;
     };
 
-    std::map<qint64, ExpCallback> mCallbacks;
+    QMap<qint64, ExpCallback> mCallbacks;
 
     void _eraseExpiredCallbacks();
     void _init(const QString &host, int port, const QSslCertificate &cert);

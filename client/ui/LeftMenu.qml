@@ -166,37 +166,37 @@ Rectangle {
             ListElement {
                 name: "bankSelectionItem"
                 text: qsTr("Мои банки")
-                ico: "icon/bank.svg"
+                ico: "../icon/bank.svg"
                 property string qmlfile: "BanksList.qml"
             }
             ListElement {
                 name: "townSelectionItem"
                 text: qsTr("Мои города")
-                ico: "icon/town.svg"
+                ico: "../icon/town.svg"
                 property string qmlfile: "TownList.qml"
             }
             ListElement {
                 name: "settingsSelectionItem"
                 text: qsTr("Настройки")
-                ico: "icon/settings.svg"
+                ico: "../icon/settings.svg"
                 property string qmlfile: ""
             }
             ListElement {
                 name: "helpSelectonItem"
                 text: qsTr("Помощь")
-                ico: "icon/info.svg"
+                ico: "../icon/info.svg"
                 property string qmlfile: ""
             }
             ListElement {
                 name: "feedbackSelectionItem"
                 text: qsTr("Оставить отзыв")
-                ico: "icon/like.svg"
+                ico: "../icon/like.svg"
                 property string qmlfile: ""
             }
             ListElement {
                 name: "bugreportSelectionItem"
                 text: qsTr("Сообщить об ошибке")
-                ico: "icon/bug.svg"
+                ico: "../icon/bug.svg"
             }
         }
 

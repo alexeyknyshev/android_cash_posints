@@ -13,6 +13,10 @@ Rectangle {
     anchors.fill: parent
     color: "#EDEDED"
 
+    onParentChanged: {
+        bankListModel.setFilter("")
+    }
+
     Rectangle {
         id: bankFilterEditContainer
 
@@ -220,7 +224,7 @@ Rectangle {
 
                     Image {
                         id: itemImage
-                        source: "ico/ico/logo/" + model.bank_name_tr_alt + ".svg"
+                        source: "../ico/ico/logo/" + model.bank_name_tr_alt + ".svg"
                         smooth: true
                         fillMode: Image.PreserveAspectFit
                         anchors.left: parent.left

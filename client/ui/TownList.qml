@@ -15,6 +15,10 @@ Rectangle {
 
     signal townSelected(int id, string name)
 
+    onParentChanged: {
+        townListModel.setFilter("")
+    }
+
     Rectangle {
         id: townFilterEditContainer
 

@@ -10,5 +10,6 @@
     "RedisHost": "localhost:6379",
     "RedisScriptsDir": "./redis_scripts",
     "ReqResLogTTL": 60,
-    "UUID_TTL": 250
+    "UUID_TTL": 250,
+    "BanksIcoDir": "./data/banks/ico"
 }

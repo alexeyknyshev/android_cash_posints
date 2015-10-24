@@ -1,0 +1,57 @@
+---
+- config:
+    - testset: "Testing backend service"
+
+- test:
+    - name: "User create success"
+    - group: "UserCreate"
+    - url: "/user"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 1 }
+    - body: '{"login":"user","password":"pass1"}'
+
+- test:
+    - name: "User create login conflict"
+    - group: "UserCreate"
+    - url: "/user"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 2 }
+    - body: '{"login":"user","password":"anotherPassword"}'
+    - expected_status: 409
+
+- test:
+    - name: "User create login to short"
+    - group: "UserCreate"
+    - url: "/user"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 3 }
+    - body: '{"login":"use","password":"pwd1"}'
+    - expected_status: 400
+
+- test:
+    - name: "User login contains invalid chars"
+    - group: "UserCreate"
+    - url: "/user"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 4 }
+    - body: '{"login":"user_петя","password":"pwd2"}'
+    - expected_status: 400
+
+- test:
+    - name: "User create password to short"
+    - group: "UserCreate"
+    - url: "/user"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 5 }
+    - body: '{"login":"user2","password":"pwd"}'
+    - expected_status: 400
+
+- test:
+    - name: "User password contains invalid chars"
+    - group: "UserCreate"
+    - url: "/user"
+    - method: "POST"
+    - headers: { Content-type: "application/json", Id: 6 }
+    - body: '{"login":"user3","password":"гpassword"}'
+    - expected_status: 400
+

@@ -1,18 +1,18 @@
 <RCC>
     <qresource prefix="/">
-        <file>main.qml</file>
-        <file>MapView.qml</file>
-        <file>MapHoldDialog.qml</file>
-        <file>MapHoldDialogItem.qml</file>
-        <file>MapMeMark.qml</file>
-        <file>EnableLocServiceDialog.qml</file>
-        <file>BanksList.qml</file>
-        <file>LeftMenu.qml</file>
-        <file>TownList.qml</file>
-        <file>UpperSwitcher.qml</file>
-        <file>viewloadercreator.js</file>
-        <file>ViewLoader.qml</file>
-        <file>SettingsView.qml</file>
+        <file>ui/BanksList.qml</file>
+        <file>ui/EnableLocServiceDialog.qml</file>
+        <file>ui/LeftMenu.qml</file>
+        <file>ui/main.qml</file>
+        <file>ui/MapHoldDialog.qml</file>
+        <file>ui/MapHoldDialogItem.qml</file>
+        <file>ui/MapMeMark.qml</file>
+        <file>ui/MapView.qml</file>
+        <file>ui/SettingsView.qml</file>
+        <file>ui/TownList.qml</file>
+        <file>ui/UpperSwitcher.qml</file>
+        <file>ui/ViewLoader.qml</file>
+        <file>ui/viewloadercreator.js</file>
     </qresource>
     <qresource prefix="/ico">
         <file>marker.png</file>
@@ -49,11 +49,5 @@
         <file alias="like.svg">ico/other/like_gray.svg</file>
         <file alias="town.svg">ico/other/buildings_gray.svg</file>
         <file alias="bank.svg">ico/other/bank_gray.svg</file>
-    </qresource>
-    <qresource prefix="/sql">
-        <file alias="banks.sql">sql/banks.sql</file>
-        <file alias="town.sql">sql/town.sql</file>
-        <file alias="region.sql">sql/region.sql</file>
-        <file alias="bank.sql">sql/bank.sql</file>
     </qresource>
 </RCC>

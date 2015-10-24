@@ -61,6 +61,7 @@ type ServerConfig struct {
 	RedisScriptsDir    string `json:"RedisScriptsDir"`
 	ReqResLogTTL       uint64 `json:"ReqResLogTTL"`
 	UUID_TTL           uint64 `json:"UUID_TTL"`
+	BanksIcoDir        string `json:"BanksIcoDir"`
 }
 
 func getRequestContexString(r *http.Request) string {
@@ -151,7 +152,7 @@ func logRequest(w http.ResponseWriter, r *http.Request, requestId int64, request
 	if requestBody != "" {
 		endpointStr = endpointStr + " => " + requestBody
 	}
-	log.Printf("%s Request: %s", getRequestContexString(r), endpointStr)
+	log.Printf("%s Request: %s %s", getRequestContexString(r), r.Method, endpointStr)
 	return nil
 }
 
@@ -240,8 +241,9 @@ func preloadRedisScripts(redisCli *redis.Client, scriptsDir string) {
 					log.Printf(logStr)
 				}()
 				cmdName := strings.ToUpper(strings.TrimSuffix(fileBaseName, fileExt))
-				redis_scripts[cmdName] = preloadRedisScriptSrc(redisCli, path)
-				logStr = logStr + " => " + cmdName
+				scriptSha := preloadRedisScriptSrc(redisCli, path)
+				redis_scripts[cmdName] = scriptSha
+				logStr = logStr + " => " + cmdName + "(" + scriptSha + ")"
 			}
 		}
 		return nil
@@ -328,6 +330,27 @@ type TownIds struct {
 	TownIds []uint32 `json:"towns"`
 }
 
+type TownList struct {
+	TownList []map[string]*json.RawMessage `json:"towns"`
+}
+
+type RegionList struct {
+	RegionList []map[string]*json.RawMessage `json:"regions"`
+}
+
+type BankIds struct {
+	BankIds []uint32 `json:"banks"`
+}
+
+type BankList struct {
+	BankList []map[string]*json.RawMessage `json:"banks"`
+}
+
+type BankIco struct {
+	BankId  uint32 `json:"bank_id"`
+	IcoData string `json:"ico_data"`
+}
+
 var BuildDate string
 
 var redis_cli_pool *pool.Pool
@@ -338,6 +361,9 @@ const script_user_create = "USERCREATE"
 const script_user_login = "USERLOGIN"
 const script_bank_create = "BANKCREATE"
 const script_cp_search_nearby = "CPSEARCHNEARBY"
+const script_towns_batch = "TOWNSBATCH"
+const script_regions_batch = "REGIONSBATCH"
+const script_banks_batch = "BANKSBATCH"
 
 const SERVER_DEFAULT_CONFIG = "config.json"
 
@@ -509,7 +535,7 @@ func handlerTownList(w http.ResponseWriter, r *http.Request) {
 
 	redisCli, err := redis_cli_pool.Get()
 	if err != nil {
-		log.Fatal("%s => %v\n", context, err)
+		log.Fatal("%s: => %v\n", context, err)
 		return
 	}
 	defer redis_cli_pool.Put(redisCli)
@@ -537,6 +563,68 @@ func handlerTownList(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseUint(idStr, 10, 32)
 		id32 := checkConvertionUint(uint32(id), err, context+" => TownIds["+strconv.FormatInt(int64(i), 10)+"] = "+idStr)
 		res.TownIds = append(res.TownIds, id32)
+	}
+
+	jsonByteArr, _ := json.Marshal(res)
+	writeResponse(w, r, requestId, string(jsonByteArr))
+}
+
+func handlerTownsBatch(w http.ResponseWriter, r *http.Request) {
+	ok, requestId := prepareResponse(w, r)
+	if ok == false {
+		return
+	}
+
+	context := getRequestContexString(r) + " " + getHandlerContextString("handlerTownList", map[string]string{
+		"requestId": strconv.FormatInt(requestId, 10),
+	})
+
+	jsonStr, err := getRequestJsonStr(r, context)
+	if err != nil {
+		go logRequest(w, r, requestId, "")
+		w.WriteHeader(400)
+		return
+	}
+	go logRequest(w, r, requestId, jsonStr)
+
+	redisCli, err := redis_cli_pool.Get()
+	if err != nil {
+		log.Fatal("%s => %v\n", context, err)
+		return
+	}
+	defer redis_cli_pool.Put(redisCli)
+
+	result := redisCli.Cmd("EVALSHA", redis_scripts[script_towns_batch], 0, jsonStr)
+	if result.Err != nil {
+		log.Printf("%s: redis => %v\n", context, result.Err)
+		w.WriteHeader(500)
+		return
+	}
+
+	if result.IsType(redis.Str) {
+		errStr, _ := result.Str()
+		log.Printf("%s: redis => %s\n", context, errStr)
+		w.WriteHeader(500)
+		return
+	}
+
+	data, err := result.List()
+	if err != nil {
+		log.Printf("%s => %v\n", context, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	res := new(TownList)
+	if len(data) == 0 {
+		res.TownList = make([]map[string]*json.RawMessage, 0)
+	}
+
+	for _, townJson := range data {
+		var town map[string]*json.RawMessage
+		//log.Printf("%s => %s\n", context, townJson)
+		json.Unmarshal([]byte(townJson), &town)
+		res.TownList = append(res.TownList, town)
 	}
 
 	jsonByteArr, _ := json.Marshal(res)
@@ -588,6 +676,164 @@ func handlerTown(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, r, requestId, jsonStr)
 }
 
+func handlerRegions(w http.ResponseWriter, r *http.Request) {
+	ok, requestId := prepareResponse(w, r)
+	if ok == false {
+		return
+	}
+	go logRequest(w, r, requestId, "")
+
+	context := getRequestContexString(r) + " " + getHandlerContextString("handlerTown", map[string]string{
+		"requestId": strconv.FormatInt(requestId, 10),
+	})
+
+	redisCli, err := redis_cli_pool.Get()
+	if err != nil {
+		log.Fatal("%s => %v\n", context, err)
+		return
+	}
+	defer redis_cli_pool.Put(redisCli)
+
+	result := redisCli.Cmd("EVALSHA", redis_scripts[script_regions_batch], 0)
+	if result.Err != nil {
+		log.Printf("%s: redis => %v\n", context, result.Err)
+		w.WriteHeader(500)
+		return
+	}
+
+	data, err := result.List()
+	if err != nil {
+		log.Printf("%s => %v\n", context, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	res := new(RegionList)
+	if len(data) == 0 {
+		res.RegionList = make([]map[string]*json.RawMessage, 0)
+	}
+
+	for _, regionJson := range data {
+		var region map[string]*json.RawMessage
+		json.Unmarshal([]byte(regionJson), &region)
+		res.RegionList = append(res.RegionList, region)
+	}
+
+	jsonByteArr, _ := json.Marshal(res)
+	writeResponse(w, r, requestId, string(jsonByteArr))
+}
+
+// ========================================================
+
+func handlerBankList(w http.ResponseWriter, r *http.Request) {
+	ok, requestId := prepareResponse(w, r)
+	if ok == false {
+		return
+	}
+	go logRequest(w, r, requestId, "")
+
+	context := getRequestContexString(r) + " " + getHandlerContextString("handlerBankList", map[string]string{
+		"requestId": strconv.FormatInt(requestId, 10),
+	})
+
+	redisCli, err := redis_cli_pool.Get()
+	if err != nil {
+		log.Fatal("%s => %v\n", context, err)
+		return
+	}
+	defer redis_cli_pool.Put(redisCli)
+
+	result := redisCli.Cmd("SMEMBERS", "banks")
+
+	if result.Err != nil {
+		log.Printf("%s: redis => %v\n", context, result.Err)
+		w.WriteHeader(500)
+		return
+	}
+
+	data, err := result.List()
+	if err != nil {
+		log.Printf("%s: redis => %v\n", context, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	res := new(BankIds)
+	if len(data) == 0 {
+		res.BankIds = make([]uint32, 0)
+	}
+
+	for i, idStr := range data {
+		id, err := strconv.ParseUint(idStr, 10, 32)
+		id32 := checkConvertionUint(uint32(id), err, context+" => BankIds["+strconv.FormatInt(int64(i), 10)+"] = "+idStr)
+		res.BankIds = append(res.BankIds, id32)
+	}
+
+	jsonByteArr, _ := json.Marshal(res)
+	writeResponse(w, r, requestId, string(jsonByteArr))
+}
+
+func handlerBanksBatch(w http.ResponseWriter, r *http.Request) {
+	ok, requestId := prepareResponse(w, r)
+	if ok == false {
+		return
+	}
+
+	context := getRequestContexString(r) + " " + getHandlerContextString("handlerBanksBatch", map[string]string{
+		"requestId": strconv.FormatInt(requestId, 10),
+	})
+
+	jsonStr, err := getRequestJsonStr(r, context)
+	if err != nil {
+		go logRequest(w, r, requestId, "")
+		w.WriteHeader(400)
+		return
+	}
+	go logRequest(w, r, requestId, jsonStr)
+
+	redisCli, err := redis_cli_pool.Get()
+	if err != nil {
+		log.Fatal("%s => %v\n", context, err)
+		return
+	}
+	defer redis_cli_pool.Put(redisCli)
+
+	result := redisCli.Cmd("EVALSHA", redis_scripts[script_banks_batch], 0, jsonStr)
+	if result.Err != nil {
+		log.Printf("%s: redis => %v\n", context, result.Err)
+		w.WriteHeader(500)
+		return
+	}
+
+	if result.IsType(redis.Str) {
+		errStr, _ := result.Str()
+		log.Printf("%s: redis => %s\n", context, errStr)
+		w.WriteHeader(500)
+		return
+	}
+
+	data, err := result.List()
+	if err != nil {
+		log.Printf("%s => %v\n", context, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	res := new(BankList)
+	if len(data) == 0 {
+		res.BankList = make([]map[string]*json.RawMessage, 0)
+	}
+
+	for _, bankJson := range data {
+		var town map[string]*json.RawMessage
+		json.Unmarshal([]byte(bankJson), &town)
+		res.BankList = append(res.BankList, town)
+	}
+
+	jsonByteArr, _ := json.Marshal(res)
+	writeResponse(w, r, requestId, string(jsonByteArr))
+}
+
 func handlerBank(w http.ResponseWriter, r *http.Request) {
 	ok, requestId := prepareResponse(w, r)
 	if ok == false {
@@ -632,6 +878,70 @@ func handlerBank(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeResponse(w, r, requestId, jsonStr)
+}
+
+func handlerBankIco(w http.ResponseWriter, r *http.Request) {
+	ok, requestId := prepareResponse(w, r)
+	if ok == false {
+		return
+	}
+
+	params := mux.Vars(r)
+	bankIdStr := params["id"]
+
+	context := getRequestContexString(r) + " " + getHandlerContextString("handlerBankIco", map[string]string{
+		"requestId": strconv.FormatInt(requestId, 10),
+		"bankId":    bankIdStr,
+	})
+
+	redisCli, err := redis_cli_pool.Get()
+	if err != nil {
+		log.Fatal("%s => %v\n", context, err)
+		return
+	}
+	defer redis_cli_pool.Put(redisCli)
+
+	result := redisCli.Cmd("HGET", "settings", "banks_ico_dir")
+
+	if result.Err != nil {
+		log.Printf("%s: redis => %v\n", context, result.Err)
+		w.WriteHeader(500)
+		return
+	}
+
+	if result.IsType(redis.Nil) {
+		log.Printf("%s: redis => no such settings entry: %s\n", context, "banks_ico_dir")
+		w.WriteHeader(500)
+		return
+	}
+
+	banksIcoDir, err := result.Str()
+	if err != nil {
+		log.Printf("%s: redis => %v\n", context, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	icoFilePath := path.Join(banksIcoDir, bankIdStr+".svg")
+
+	if _, err := os.Stat(icoFilePath); os.IsNotExist(err) {
+		w.WriteHeader(404)
+		return
+	}
+
+	data, err := ioutil.ReadFile(icoFilePath)
+	if err != nil {
+		log.Printf("%s => cannot read file: %s", context, icoFilePath)
+		w.WriteHeader(500)
+		return
+	}
+
+	id, err := strconv.ParseUint(bankIdStr, 10, 32)
+	bankId := checkConvertionUint(uint32(id), err, context+" => BankIco.BankId")
+
+	ico := &BankIco{BankId: bankId, IcoData: string(data)}
+	jsonByteArr, _ := json.Marshal(ico)
+	writeResponse(w, r, requestId, string(jsonByteArr))
 }
 
 func handlerBankCreate(w http.ResponseWriter, r *http.Request) {
@@ -684,7 +994,7 @@ func handlerCashpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.IsType(redis.Nil) {
-		log.Printf("%s => no such cashPointI=-%s\n", context, cashPointId)
+		log.Printf("%s => no such cashPointId=%s\n", context, cashPointId)
 		w.WriteHeader(404)
 		return
 	}
@@ -878,7 +1188,8 @@ func main() {
 
 	redis_cli.Cmd("HMSET", "settings", "user_login_min_length", serverConfig.UserLoginMinLength,
 		"user_password_min_length", serverConfig.UserPwdMinLength,
-		"uuid_ttl", serverConfig.UUID_TTL)
+		"uuid_ttl", serverConfig.UUID_TTL,
+		"banks_ico_dir", serverConfig.BanksIcoDir)
 
 	preloadRedisScripts(redis_cli, serverConfig.RedisScriptsDir)
 
@@ -888,10 +1199,15 @@ func main() {
 	router.HandleFunc("/user", handlerUserCreate).Methods("POST")
 	router.HandleFunc("/user", handlerUserDelete).Methods("DELETE")
 	router.HandleFunc("/login", handlerUserLogin).Methods("POST")
-	router.HandleFunc("/towns", handlerTownList)
+	router.HandleFunc("/towns", handlerTownList).Methods("GET")
+	router.HandleFunc("/towns", handlerTownsBatch).Methods("POST")
+	router.HandleFunc("/regions", handlerRegions)
 	router.HandleFunc("/town/{id:[0-9]+}", handlerTown)
 	router.HandleFunc("/bank/{id:[0-9]+}", handlerBank)
+	router.HandleFunc("/bank/{id:[0-9]+}/ico", handlerBankIco).Methods("GET")
 	router.HandleFunc("/bank", handlerBankCreate).Methods("POST")
+	router.HandleFunc("/banks", handlerBankList).Methods("GET")
+	router.HandleFunc("/banks", handlerBanksBatch).Methods("POST")
 	router.HandleFunc("/cashpoint", handlerCashpointCreate).Methods("POST")
 	router.HandleFunc("/cashpoint/{id:[0-9]+}", handlerCashpoint)
 	router.HandleFunc("/town/{town_id:[0-9]+}/bank/{bank_id:[0-9]+}/cashpoints", handlerCashpointsByTownAndBank)

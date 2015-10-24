@@ -21,7 +21,7 @@ type Town struct {
 	Id             uint32  `json:"id"`
 	Name           string  `json:"name"`
 	NameTr         string  `json:"name_tr"`
-	RegionId       uint32  `json:"region_id"`
+	RegionId       *uint32 `json:"region_id"`
 	RegionalCenter bool    `json:"regional_center"`
 	Latitude       float32 `json:"latitude"`
 	Longitude      float32 `json:"longitude"`
@@ -35,6 +35,17 @@ type Region struct {
 	Latitude  float32 `json:"latitude"`
 	Longitude float32 `json:"longitude"`
 	Zoom      uint32  `json:"zoom"`
+}
+
+type Bank struct {
+	Id        uint32 `json:"id"`
+	Name      string `json:"name"`
+	NameTr    string `json:"name_tr"`
+	NameTrAlt string `json:"name_tr_alt"`
+	Town      string `json:"town"`
+	Licence   uint32 `json:"licence"`
+	Rating    uint32 `json:"rating"`
+	Tel       string `json:"tel"`
 }
 
 type CashPoint struct {
@@ -79,11 +90,17 @@ func migrateTowns(townsDb *sql.DB, redisCli *redis.Client) {
     currentTownIdx := 1
     for rows.Next() {
         town := new(Town)
+        var regionId uint32 = 0
         err = rows.Scan(&town.Id, &town.Name, &town.NameTr,
-                        &town.RegionId, &town.RegionalCenter,
+                        &regionId, &town.RegionalCenter,
                         &town.Latitude, &town.Longitude, &town.Zoom)
         if err != nil {
             log.Fatal(err)
+        }
+
+        if regionId != 0 {
+            town.RegionId = new(uint32)
+            *town.RegionId = regionId
         }
 
         jsonData, err := json.Marshal(town)
@@ -142,6 +159,11 @@ func migrateRegions(townsDb *sql.DB, redisCli *redis.Client) {
             log.Fatal(err)
         }
 
+        err = redisCli.Cmd("GEOADD", "regions", region.Longitude, region.Latitude, region.Id).Err
+        if err != nil {
+            log.Fatal(err)
+	}
+
         currentRegionIdx++
 
         if currentRegionIdx % 500 == 0 {
@@ -149,6 +171,59 @@ func migrateRegions(townsDb *sql.DB, redisCli *redis.Client) {
         }
     }
     log.Printf("[%d/%d] Regions processed\n", regionsCount, regionsCount)
+}
+
+func migrateBanks(banksDb *sql.DB, redisCli *redis.Client) {
+    var banksCount int
+    err := banksDb.QueryRow(`SELECT COUNT(*) FROM banks`).Scan(&banksCount)
+    if err != nil {
+        log.Fatalf("migrate: banks: %v", err)
+    }
+
+    rows, err := banksDb.Query(`SELECT id, name, name_tr, name_tr_alt, town,
+                                       licence, rating, tel FROM banks`)
+    if err != nil {
+        log.Fatalf("migrate: banks: %v", err)
+    }
+
+    currentBankIdx := 1
+    for rows.Next() {
+        bank := new(Bank)
+        var nameTr sql.NullString
+        err = rows.Scan(&bank.Id, &bank.Name, &nameTr, &bank.NameTrAlt,
+                        &bank.Town, &bank.Licence, &bank.Rating, &bank.Tel)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        if nameTr.Valid {
+            bank.NameTr = nameTr.String
+        } else {
+            bank.NameTr = ""
+        }
+
+        jsonData, err := json.Marshal(bank)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        err = redisCli.Cmd("SET", "bank:" + strconv.FormatUint(uint64(bank.Id), 10), string(jsonData)).Err
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        err = redisCli.Cmd("SADD", "banks", bank.Id).Err
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        currentBankIdx++
+
+        if currentBankIdx % 100 == 0 {
+            log.Printf("[%d/%d] Banks processed\n", currentBankIdx, banksCount)
+        }
+    }
+    log.Printf("[%d/%d] Banks processed\n", banksCount, banksCount)
 }
 
 func migrateCashpoints(cpDb *sql.DB, redisCli *redis.Client) {
@@ -224,10 +299,11 @@ func migrateCashpoints(cpDb *sql.DB, redisCli *redis.Client) {
     log.Printf("[%d/%d] Cashpoints processed\n", cashpointsCount, cashpointsCount)
 }
 
-func migrate(townsDb *sql.DB, cpDb *sql.DB, redisCli *redis.Client) {
+func migrate(townsDb *sql.DB, cpDb *sql.DB, banksDb *sql.DB, redisCli *redis.Client) {
     migrateTowns(townsDb, redisCli)
     migrateRegions(townsDb, redisCli)
     migrateCashpoints(cpDb, redisCli)
+    migrateBanks(banksDb, redisCli)
 }
 
 func main() {
@@ -242,12 +318,17 @@ func main() {
     }
 
     if len(args) == 2 {
+        log.Fatal("Banks db file path is not specified")
+    }
+
+    if len(args) == 3 {
         log.Fatal("Redis database url is not specified")
     }
 
     townsDbPath := args[0]
     cashpointsDbPath := args[1]
-    redisUrl := args[2]
+    banksDbPath := args[2]
+    redisUrl := args[3]
 
     townsDb, err := sql.Open("sqlite3", townsDbPath)
     if err != nil {
@@ -261,11 +342,17 @@ func main() {
     }
     defer cashpointsDb.Close()
 
+    banksDb, err := sql.Open("sqlite3", banksDbPath)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer banksDb.Close()
+
     redisCli, err := redis.Dial("tcp", redisUrl)
     if err != nil {
         log.Fatal(err)
     }
     defer redisCli.Close()
 
-    migrate(townsDb, cashpointsDb, redisCli)
+    migrate(townsDb, cashpointsDb, banksDb, redisCli)
 }
