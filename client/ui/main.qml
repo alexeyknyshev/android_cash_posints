@@ -13,6 +13,16 @@ ApplicationWindow {
     height: 480
     visible: true
 
+    objectName: "appWindow"
+    signal pong(bool ok)
+    onPong: {
+        if (ok) {
+            console.log("pong :)")
+        } else {
+            console.warn("pong :(")
+        }
+    }
+
     property date lastExitAttempt: new Date()
     property int backExitThreathold: 500
 

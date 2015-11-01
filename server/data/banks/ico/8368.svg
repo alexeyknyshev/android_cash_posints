@@ -8,11 +8,11 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    version="1.1"
-   width="119.54421"
-   height="77.120346"
+   width="139.5442"
+   height="137.12035"
    id="svg4965"
-   inkscape:version="0.48.5 r10040"
-   sodipodi:docname="citibank.svg">
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="8368.svg">
   <sodipodi:namedview
      pagecolor="#ffffff"
      bordercolor="#666666"
@@ -22,19 +22,19 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="1015"
+     inkscape:window-width="1855"
+     inkscape:window-height="1056"
      id="namedview13"
      showgrid="false"
-     fit-margin-top="0"
-     fit-margin-left="0"
-     fit-margin-right="0"
-     fit-margin-bottom="0"
+     fit-margin-top="25"
+     fit-margin-left="10"
+     fit-margin-right="10"
+     fit-margin-bottom="35"
      inkscape:zoom="1.5866667"
-     inkscape:cx="514.61749"
-     inkscape:cy="-72.018873"
-     inkscape:window-x="-2"
-     inkscape:window-y="-3"
+     inkscape:cx="524.6175"
+     inkscape:cy="-37.018862"
+     inkscape:window-x="65"
+     inkscape:window-y="24"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg4965" />
   <defs
@@ -52,7 +52,7 @@
     </rdf:RDF>
   </metadata>
   <g
-     transform="translate(-299.9885,-474.70039)"
+     transform="translate(-289.9885,-449.70039)"
      id="layer1">
     <g
        transform="matrix(2.4662885,0,0,-2.4662885,-772.5069,719.18727)"

@@ -108,6 +108,42 @@ void ServerApi::update()
     _eraseExpiredCallbacks();
 }
 
+void ServerApi::ping()
+{
+    qDebug() << "ping";
+    sendRequest("/ping", {},
+    [&](HttpStatusCode code, const QByteArray &data, bool timeOut) {
+        if (timeOut) {
+            emitPong(false);
+            return;
+        }
+
+        if (code != HSC_Ok) {
+            emitPong(false);
+            return;
+        }
+
+        QJsonParseError err;
+        QJsonDocument json = QJsonDocument::fromJson(data, &err);
+        if (!json.isObject()) {
+            emitPong(false);
+            return;
+        }
+
+        if (json.object()["msg"].toString() != "pong") {
+            emitPong(false);
+            return;
+        }
+
+        emitPong(true);
+    });
+}
+
+void ServerApi::emitPong(bool ok)
+{
+    emit pong(ok);
+}
+
 static ServerApi::HttpStatusCode getStatusCode(QNetworkReply *rep)
 {
     bool convertOk = false;

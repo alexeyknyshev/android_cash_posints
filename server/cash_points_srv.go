@@ -41,14 +41,6 @@ func isAlphaNumericString(s string) bool {
 
 // ========================================================
 
-const JsonNullResponse string = `{"id":null}`
-const JsonLoginTooShortResponse = `{"id":null,"msg":"Login is too short"}`
-const JsonLoginInvalidCharResponse = `{"id":null,"msg":"Login contains invalid characters"}`
-const JsonPwdTooShortResponse = `{"id":null,"msg":"Password is too short"}`
-const JsonPwdInvalidCharResponse = `{"id":null,"msg":"Password contains invalid characters"}`
-
-// ========================================================
-
 type ServerConfig struct {
 	TownsDataBase      string `json:"TownsDataBase"`
 	CashPointsDataBase string `json:"CashPointsDataBase"`
@@ -203,6 +195,26 @@ func prepareResponse(w http.ResponseWriter, r *http.Request) (bool, int64) {
 	return true, requestId
 }
 
+func redisListResponseExpected(w http.ResponseWriter, r *redis.Resp, context string) ([]string, bool) {
+	if r.IsType(redis.Str) {
+		errStr, _ := r.Str()
+		log.Printf("%s: redis => %s\n", context, errStr)
+		w.WriteHeader(500)
+		data := make([]string, 0)
+		return data, false
+	}
+
+	data, err := r.List()
+	if err != nil {
+		log.Printf("%s => %v\n", context, err)
+		w.WriteHeader(500)
+		data := make([]string, 0)
+		return data, false
+	}
+
+	return data, true
+}
+
 // ========================================================
 
 func preloadRedisScriptSrc(redisCli *redis.Client, srcFilePath string) string {
@@ -292,7 +304,7 @@ type SearchNearbyRequest struct {
 	Radius    float32 `json:"radius"`
 }
 
-type SearchNearbyResponse struct {
+type CashPointIds struct {
 	CashPointIds []uint32 `json:"cash_points"`
 }
 
@@ -360,7 +372,7 @@ var redis_scripts map[string]string
 const script_user_create = "USERCREATE"
 const script_user_login = "USERLOGIN"
 const script_bank_create = "BANKCREATE"
-const script_cp_search_nearby = "CPSEARCHNEARBY"
+const script_search_nearby = "SEARCHNEARBY"
 const script_towns_batch = "TOWNSBATCH"
 const script_regions_batch = "REGIONSBATCH"
 const script_banks_batch = "BANKSBATCH"
@@ -374,6 +386,19 @@ var MIN_LOGIN_LENGTH uint64 = 4
 var MIN_PWD_LENGTH uint64 = 4
 
 var REQ_RES_LOG_TTL uint64 = 60
+
+// ========================================================
+
+func handlerPing(w http.ResponseWriter, r *http.Request) {
+	ok, requestId := prepareResponse(w, r)
+	if ok == false {
+		return
+	}
+
+	go logRequest(w, r, requestId, "")
+
+	writeResponse(w, r, requestId, `{"msg":"pong"}`)
+}
 
 // ========================================================
 
@@ -601,17 +626,8 @@ func handlerTownsBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if result.IsType(redis.Str) {
-		errStr, _ := result.Str()
-		log.Printf("%s: redis => %s\n", context, errStr)
-		w.WriteHeader(500)
-		return
-	}
-
-	data, err := result.List()
-	if err != nil {
-		log.Printf("%s => %v\n", context, err)
-		w.WriteHeader(500)
+	data, ok := redisListResponseExpected(w, result, context)
+	if ok == false {
 		return
 	}
 
@@ -701,10 +717,8 @@ func handlerRegions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := result.List()
-	if err != nil {
-		log.Printf("%s => %v\n", context, err)
-		w.WriteHeader(500)
+	data, ok := redisListResponseExpected(w, result, context)
+	if ok == false {
 		return
 	}
 
@@ -751,10 +765,8 @@ func handlerBankList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := result.List()
-	if err != nil {
-		log.Printf("%s: redis => %v\n", context, err)
-		w.WriteHeader(500)
+	data, ok := redisListResponseExpected(w, result, context)
+	if ok == false {
 		return
 	}
 
@@ -812,10 +824,8 @@ func handlerBanksBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := result.List()
-	if err != nil {
-		log.Printf("%s => %v\n", context, err)
-		w.WriteHeader(500)
+	data, ok := redisListResponseExpected(w, result, context)
+	if ok == false {
 		return
 	}
 
@@ -1071,14 +1081,15 @@ func handlerCashpointsByTownAndBank(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, r, requestId, string(jsonByteArr))
 }
 
-func handlerSearchCashPoinstsNearby(w http.ResponseWriter, r *http.Request) {
+// ========================================================
+
+func handlerNearbyCashPoints(w http.ResponseWriter, r *http.Request) {
 	ok, requestId := prepareResponse(w, r)
 	if ok == false {
 		return
 	}
-	go logRequest(w, r, requestId, "")
 
-	context := getRequestContexString(r) + " " + getHandlerContextString("handlerSearchCashPoinstsNearby", map[string]string{
+	context := getRequestContexString(r) + " " + getHandlerContextString("handlerNearbyCashPoints", map[string]string{
 		"requestId": strconv.FormatInt(requestId, 10),
 	})
 
@@ -1098,28 +1109,19 @@ func handlerSearchCashPoinstsNearby(w http.ResponseWriter, r *http.Request) {
 	}
 	defer redis_cli_pool.Put(redisCli)
 
-	result := redisCli.Cmd("EVALSHA", redis_scripts[script_cp_search_nearby], 0, jsonStr)
+	result := redisCli.Cmd("EVALSHA", redis_scripts[script_search_nearby], 1, "cashpoints", jsonStr)
 	if result.Err != nil {
 		log.Printf("%s: redis => %v\n", context, result.Err)
 		w.WriteHeader(500)
 		return
 	}
 
-	if result.IsType(redis.Str) {
-		errStr, _ := result.Str()
-		log.Printf("%s: redis => %s\n", context, errStr)
-		w.WriteHeader(500)
+	data, ok := redisListResponseExpected(w, result, context)
+	if ok == false {
 		return
 	}
 
-	data, err := result.List()
-	if err != nil {
-		log.Printf("%s => %v\n", context, err)
-		w.WriteHeader(500)
-		return
-	}
-
-	res := SearchNearbyResponse{CashPointIds: make([]uint32, 0)}
+	res := CashPointIds{CashPointIds: make([]uint32, 0)}
 
 	for i, idStr := range data {
 		id, err := strconv.ParseUint(idStr, 10, 32)
@@ -1130,6 +1132,58 @@ func handlerSearchCashPoinstsNearby(w http.ResponseWriter, r *http.Request) {
 	jsonByteArr, _ := json.Marshal(res)
 	writeResponse(w, r, requestId, string(jsonByteArr))
 }
+
+func handlerNearbyTowns(w http.ResponseWriter, r *http.Request) {
+	ok, requestId := prepareResponse(w, r)
+	if ok == false {
+		return
+	}
+
+	context := getRequestContexString(r) + " " + getHandlerContextString("handlerNearbyTowns", map[string]string{
+		"requestId": strconv.FormatInt(requestId, 10),
+	})
+
+	jsonStr, err := getRequestJsonStr(r, context)
+	if err != nil {
+		go logRequest(w, r, requestId, "")
+		w.WriteHeader(400)
+		return
+	}
+
+	go logRequest(w, r, requestId, jsonStr)
+
+	redisCli, err := redis_cli_pool.Get()
+	if err != nil {
+		log.Fatal("%s => %v\n", context, err)
+		return
+	}
+	defer redis_cli_pool.Put(redisCli)
+
+	result := redisCli.Cmd("EVALSHA", redis_scripts[script_search_nearby], 1, "towns", jsonStr)
+	if result.Err != nil {
+		log.Printf("%s: redis => %v\n", context, result.Err)
+		w.WriteHeader(500)
+		return
+	}
+
+	data, ok := redisListResponseExpected(w, result, context)
+	if ok == false {
+		return
+	}
+
+	res := TownIds{TownIds: make([]uint32, 0)}
+
+	for i, idStr := range data {
+		id, err := strconv.ParseUint(idStr, 10, 32)
+		id32 := checkConvertionUint(uint32(id), err, context+" => TownIds["+strconv.FormatInt(int64(i), 10)+"] = "+idStr)
+		res.TownIds = append(res.TownIds, id32)
+	}
+
+	jsonByteArr, _ := json.Marshal(res)
+	writeResponse(w, r, requestId, string(jsonByteArr))
+}
+
+// ========================================================
 
 func main() {
 	log.SetFlags(log.Flags() | log.Lmicroseconds)
@@ -1196,6 +1250,7 @@ func main() {
 	REQ_RES_LOG_TTL = serverConfig.ReqResLogTTL
 
 	router := mux.NewRouter()
+	router.HandleFunc("/ping", handlerPing).Methods("GET")
 	router.HandleFunc("/user", handlerUserCreate).Methods("POST")
 	router.HandleFunc("/user", handlerUserDelete).Methods("DELETE")
 	router.HandleFunc("/login", handlerUserLogin).Methods("POST")
@@ -1211,7 +1266,8 @@ func main() {
 	router.HandleFunc("/cashpoint", handlerCashpointCreate).Methods("POST")
 	router.HandleFunc("/cashpoint/{id:[0-9]+}", handlerCashpoint)
 	router.HandleFunc("/town/{town_id:[0-9]+}/bank/{bank_id:[0-9]+}/cashpoints", handlerCashpointsByTownAndBank)
-	router.HandleFunc("/search/caspoints/nearby", handlerSearchCashPoinstsNearby).Methods("POST")
+	router.HandleFunc("/nearby/cashpoints", handlerNearbyCashPoints).Methods("POST")
+	router.HandleFunc("/nearby/towns", handlerNearbyTowns).Methods("POST")
 
 	port := ":" + strconv.FormatUint(serverConfig.Port, 10)
 	log.Println("Listening 127.0.0.1" + port)

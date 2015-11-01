@@ -270,7 +270,11 @@ func migrateCashpoints(cpDb *sql.DB, redisCli *redis.Client) {
         }
 
         err = redisCli.Cmd("SET", "cp:" + cashpointIdStr, string(jsonData)).Err
+        if err != nil {
+            log.Fatal(err)
+        }
 
+        err = redisCli.Cmd("SET", "cp:" + cashpointIdStr + ":version", 1).Err
         if err != nil {
             log.Fatal(err)
         }

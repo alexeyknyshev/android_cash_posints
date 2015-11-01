@@ -16,30 +16,6 @@
     </qresource>
     <qresource prefix="/ico">
         <file>marker.png</file>
-        <file>ico/logo/alfabank.svg</file>
-        <file>ico/logo/rosbank.svg</file>
-        <file>ico/logo/gazprombank.svg</file>
-        <file>ico/logo/unicreditbank.svg</file>
-        <file>ico/logo/vtb24.svg</file>
-        <file>ico/logo/binbank.svg</file>
-        <file>ico/logo/raiffeisen.svg</file>
-        <file>ico/logo/zenit.svg</file>
-        <file>ico/logo/sberbank.svg</file>
-        <file>ico/logo/fk_otkritie.svg</file>
-        <file>ico/logo/promsvyazbank.svg</file>
-        <file>ico/logo/vtb.svg</file>
-        <file>ico/logo/rsb.svg</file>
-        <file>ico/logo/mspbank.svg</file>
-        <file>ico/logo/ingbank.svg</file>
-        <file>ico/logo/homecreditbank.svg</file>
-        <file>ico/logo/nordea.svg</file>
-        <file>ico/logo/citibank.svg</file>
-        <file>ico/logo/hsbc.svg</file>
-        <file>ico/logo/vozrojdenie.svg</file>
-        <file>ico/logo/smpbank.svg</file>
-        <file>ico/logo/intercommerzbank.svg</file>
-        <file>ico/logo/deutschebank.svg</file>
-        <file>ico/logo/mtsbank.svg</file>
     </qresource>
     <qresource prefix="/icon">
         <file alias="atm.svg">ico/other/atm_gray.svg</file>
@@ -49,5 +25,7 @@
         <file alias="like.svg">ico/other/like_gray.svg</file>
         <file alias="town.svg">ico/other/buildings_gray.svg</file>
         <file alias="bank.svg">ico/other/bank_gray.svg</file>
+        <file alias="star.svg">ico/other/star.svg</file>
+        <file alias="star_gray.svg">ico/other/star_gray.svg</file>
     </qresource>
 </RCC>

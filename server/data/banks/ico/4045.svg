@@ -9,12 +9,12 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    version="1.0"
-   width="37.237881"
-   height="37.516655"
-   viewBox="0 0 253.5913 255.79537"
+   width="49.237881"
+   height="47.516655"
+   viewBox="0 0 335.31173 323.97719"
    id="svg2"
-   inkscape:version="0.48.5 r10040"
-   sodipodi:docname="unicredit.svg">
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="4045.svg">
   <metadata
      id="metadata64">
     <rdf:RDF>
@@ -35,19 +35,19 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="1015"
+     inkscape:window-width="1855"
+     inkscape:window-height="1056"
      id="namedview62"
      showgrid="false"
-     fit-margin-top="0"
-     fit-margin-left="0"
-     fit-margin-right="0"
-     fit-margin-bottom="0"
+     fit-margin-top="5"
+     fit-margin-left="7"
+     fit-margin-right="5"
+     fit-margin-bottom="5"
      inkscape:zoom="2.4127801"
-     inkscape:cx="305.81129"
-     inkscape:cy="-5.0030555"
-     inkscape:window-x="-2"
-     inkscape:window-y="-3"
+     inkscape:cx="313.11461"
+     inkscape:cy="-0.0030563443"
+     inkscape:window-x="65"
+     inkscape:window-y="24"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg2" />
   <defs
@@ -173,7 +173,7 @@
   <use
      x="38.900002"
      y="5"
-     transform="matrix(1.32,0,0,1.32,-58.654261,-9.732831)"
+     transform="matrix(1.32,0,0,1.32,-8.8588771,24.358078)"
      width="264.20001"
      height="264.20001"
      xlink:href="#signet"

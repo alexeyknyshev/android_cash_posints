@@ -31,7 +31,7 @@ Rectangle {
         anchors.bottomMargin: anchors.leftMargin
 
         radius: height / 20
-        height: bankFilterEdit.contentHeight * 2
+        height: Math.min(bankFilterEdit.contentHeight * 2, parent.height * 0.1)
 
         TextInput {
             id: bankFilterEdit
@@ -224,14 +224,14 @@ Rectangle {
 
                     Image {
                         id: itemImage
-                        source: "../ico/ico/logo/" + model.bank_name_tr_alt + ".svg"
+                        source: model.bank_ico_path ? "image://" + model.bank_ico_path : ""
+                        sourceSize: Qt.size(width, height)
                         smooth: true
-                        fillMode: Image.PreserveAspectFit
+                        fillMode: Image.Pad
                         anchors.left: parent.left
                         anchors.leftMargin: bankFilterEdit.anchors.leftMargin
                         anchors.top: parent.top
                         anchors.topMargin: bankFilterEdit.anchors.topMargin
-//                        anchors.bottom: parent.bottom
                         anchors.bottomMargin: bankFilterEdit.anchors.bottomMargin
                         height: bankListView.height / 15
                         width: height
@@ -243,9 +243,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
 
                         anchors.left: itemImage.right
-                        //anchors.right: itemTelNumber.left
-                        anchors.right: parent.right
-                        anchors.rightMargin: bankFilterEdit.anchors.rightMargin
+                        anchors.right: itemBankMine.left
                         anchors.leftMargin: bankFilterEdit.anchors.leftMargin
 
                         verticalAlignment: Text.AlignVCenter
@@ -257,6 +255,31 @@ Rectangle {
                         font.pixelSize: Math.max(topRect.height, topRect.height) / (15 * 3) > 18 ?
                                         Math.max(topRect.height, topRect.height) / (15 * 3) : 18
                     }
+
+                    Image {
+                        z: parent.z + 1
+                        id: itemBankMine
+                        source: model.bank_is_mine ? "image://ico/star.svg" : "image://ico/star_gray.svg"
+                        sourceSize: Qt.size(width, height)
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: height * 0.3
+//                        antialiasing: true
+                        smooth: true
+                        width: height
+                        height: bankListView.height * 0.05
+
+                        MouseArea {
+                            z: parent.z + 1
+                            anchors.fill: parent
+                            onClicked: {
+//                                console.log("clicked")
+                                model.bank_is_mine = model.bank_is_mine ? 0 : 1
+                            }
+                        }
+                    }
+
+
 
                     /*Label {
                         id: itemTelNumber
@@ -302,7 +325,7 @@ Rectangle {
                             }
                         }
                         onClicked: {
-                            console.log("selected bank: " + model.bank_name)
+                            console.log("selected bank: " + model.bank_name + " (" + model.bank_id + ") ")
                         }
                     }
                 }

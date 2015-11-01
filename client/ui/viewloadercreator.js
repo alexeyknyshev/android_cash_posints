@@ -4,7 +4,7 @@ var callback;
 
 function createViewLoader(callbackFunc) {
     callback = callbackFunc
-    if (component != null) {
+    if (component) {
         callback(viewloader)
         return
     }
@@ -20,7 +20,7 @@ function createViewLoader(callbackFunc) {
 function finishCreation() {
     if (component.status === Component.Ready) {
         viewloader = component.createObject(flipable.front, { "anchors.fill": flipable.front });
-        if (viewloader === null) {
+        if (!viewloader) {
             console.log("Error creating ViewLoader object");
         }
         if (callback) {

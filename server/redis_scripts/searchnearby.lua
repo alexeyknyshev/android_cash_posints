@@ -1,4 +1,9 @@
+local geoset = KEYS[1]
 local reqPayload = ARGV[1]
+
+if not geoset then
+    return 'No geoset specified'
+end
 
 if not reqPayload then
     return 'No json data'
@@ -18,8 +23,8 @@ if not req.radius then
     return 'No such radius'
 end
 
-if not req.radius > 0 then
+if req.radius <= 0 then
     return 'Search radius must be positive'
 end
 
-return redis.call('GEORADIUS', 'cashpoints', req.longitude, req.latitude, req.radius, 'm')
+return redis.call('GEORADIUS', geoset, req.longitude, req.latitude, req.radius, 'm')

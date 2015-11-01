@@ -56,14 +56,20 @@ signals:
     void responseReceived(qint64 requestId);
     void requestTimedout(qint64 requestId);
 
+    void pong(bool ok);
+
 public slots:
     void postRequest(QString path, QJsonObject data, ServerApi::Callback Callback);
     void update();
+
+    void ping();
 
 private slots:
     void onResponseReceived(QNetworkReply *);
 
 private:
+    void emitPong(bool ok);
+
     mutable qint64 mNextUniqueId;
     QUrl mSrvUrl;
     QNetworkAccessManager *mNetworkMgr;

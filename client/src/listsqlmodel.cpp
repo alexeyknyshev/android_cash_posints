@@ -3,17 +3,27 @@
 #define DEFAULT_ATTEMPTS_COUNT 3
 #define DEFAULT_BATCH_SIZE 128
 
-ListSqlModel::ListSqlModel(const QString &connectionName, ServerApi *api)
-    : mApi(api)
+ListSqlModel::ListSqlModel(const QString &connectionName,
+                           ServerApi *api,
+                           IcoImageProvider *imageProvider,
+                           QSettings *settings)
+    : mApi(api),
+      mImageProvider(imageProvider),
+      mSettings(settings)
 {
     Q_UNUSED(connectionName);
     Q_ASSERT_X(api, "ListSqlModel()", "null ServerApi ptr");
+    Q_ASSERT_X(imageProvider, "ListSqlModel()", "null IcoImageProvider ptr");
+    Q_ASSERT_X(settings, "ListSqlModel()", "null QSettiings ptr");
 
     setAttemptsCount(DEFAULT_ATTEMPTS_COUNT);
     setRequestBatchSize(DEFAULT_BATCH_SIZE);
+
+    connect(this, SIGNAL(filterRequest(QString)),
+            this, SLOT(_setFilter(QString)), Qt::QueuedConnection);
 }
 
-void ListSqlModel::setFilter(QString filter)
+QString ListSqlModel::escapeFilter(QString filter)
 {
     filter.replace('_', "");
     filter.replace('%', "");
@@ -30,6 +40,16 @@ void ListSqlModel::setFilter(QString filter)
         filter.append('%');
     }
 
+    return filter;
+}
+
+void ListSqlModel::setFilter(QString filter)
+{
+    emit filterRequest(escapeFilter(filter));
+}
+
+void ListSqlModel::_setFilter(QString filter)
+{
     setFilterImpl(filter);
 }
 

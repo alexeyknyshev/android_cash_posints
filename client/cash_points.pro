@@ -6,7 +6,9 @@ SOURCES += src/main.cpp \
     src/banklistsqlmodel.cpp \
     src/townlistsqlmodel.cpp \
     src/serverapi.cpp \
-    src/listsqlmodel.cpp
+    src/listsqlmodel.cpp \
+    src/icoimageprovider.cpp \
+    src/searchengine.cpp
 
 RESOURCES += qml.qrc
 
@@ -32,7 +34,9 @@ HEADERS += \
     src/townlistsqlmodel.h \
     src/serverapi.h \
     src/rpctype.h \
-    src/listsqlmodel.h
+    src/listsqlmodel.h \
+    src/icoimageprovider.h \
+    src/searchengine.h
 
 QMAKE_CXXFLAGS += -std=c++11
 

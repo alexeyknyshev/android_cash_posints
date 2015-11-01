@@ -592,9 +592,10 @@ Item {
 
             onDisplayTextChanged: {
                 if (displayText === "" || displayText === placeHolderText) {
-                    bankListModel.setFilter("")
+                    //bankListModel.setFilter("")
                 } else {
-                    bankListModel.setFilter(displayText)
+                    console.log("text changed")
+                    //bankListModel.setFilter(displayText)
                 }
             }
         } // TextInput
