@@ -30,6 +30,9 @@ local COL_CLUSTER_COORD = 2
 local COL_CLUSTER_MEMBERS = 3
 local COL_CLUSTER_SIZE = 4
 
+local COL_PATCH_ID = 1
+local COL_PATCH_CP_ID = 2
+
 local CLUSTER_ZOOM_MIN = 10
 local CLUSTER_ZOOM_MAX = 16
 
@@ -155,7 +158,12 @@ end
 function _deleteCashpointPatches(cpId)
     local patches = box.space.cashpoints_patches.index[1]:select{ cpId }
     for _, patch in pairs(patches) do
-        _deleteCashpointPatchById(patch[1])
+        _deleteCashpointPatchById(patch[COL_PATCH_ID])
+    end
+    local tuple = box.space.cashpoints.index[0]:select{cpId}[1]
+    if not tuple[COL_CP_APPROVED] then
+        print("deleted cashpoint " .. tostring(cpId))
+        box.space.cashpoints.index[0]:delete{cpId}
     end
 end
 
