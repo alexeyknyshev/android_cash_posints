@@ -99,6 +99,19 @@ local function _clusterTupleToTable(t)
     return cluster
 end
 
+function _getFiltersList()
+    return {
+        assert(matchingBankFilter),
+        assert(matchingTypeFilter),
+        assert(matchingCurrencyFilter),
+        assert(matchingRoundTheClock),
+        assert(matchingWithoutWeekend),
+        assert(matchingFreeAccess),
+        assert(matchingApproved),
+        assert(matchingTimeFilter),
+    }
+end
+
 function _getCashpointById(cpId)
     local t = box.space.cashpoints.index[0]:select(cpId)
     if #t == 0 then

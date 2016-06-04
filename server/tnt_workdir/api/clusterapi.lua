@@ -51,17 +51,7 @@ function _getNearbyQuadClusters(req)
     local t = box.space.clusters.index[1]:select({ req.topLeft.longitude, req.topLeft.latitude,
                                                    req.bottomRight.longitude, req.bottomRight.latitude },
                                                  { iterator = "le" })
-    local filtersList = {
-        matchingBankFilter,
-        matchingTypeFilter,
-        matchingRubFilter,
-        matchingUsdFilter,
-        matchingEurFilter,
-        matchingRoundTheClock,
-        matchingWithoutWeekend,
-        matchingFreeAccess,
-        matchingApproved,
-    }
+    local filtersList = _getFiltersList()
 
     local result = {}
 

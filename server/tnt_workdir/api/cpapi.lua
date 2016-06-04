@@ -125,16 +125,7 @@ function getNearbyCashpoints(reqJson)
 
 
 
-    local filtersList = {
-        matchingBankFilter,
-        matchingTypeFilter,
-        matchingCurrencyFilter,
-        matchingRoundTheClock,
-        matchingWithoutWeekend,
-        matchingFreeAccess,
-        matchingApproved,
-        matchingTimeFilter,
-    }
+    local filtersList = _getFiltersList()
 
     local result = {}
 
