@@ -4,7 +4,7 @@ ADD src /usr/src/cpsrv/src
 ADD docker/config.json /etc/cpsrv/config.json
 
 RUN mkdir /usr/src/cpsrv/bin
-RUN cd /usr/src/cpsrv && export GOPATH=$PWD && go build github.com/alexeyknyshev/cpsrv
+RUN cd /usr/src/cpsrv && export GOBIN="" && export GOPATH=$PWD && go build github.com/alexeyknyshev/cpsrv
 RUN cp /usr/src/cpsrv/cpsrv /usr/bin/
 
 {main}^CMD /usr/bin/cpsrv /etc/cpsrv/config.json

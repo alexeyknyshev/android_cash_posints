@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode"
 )
 
 var MAX_CLUSTER_COUNT uint64 = 32
@@ -252,6 +254,28 @@ func handlerQuadTreeBranch(handlerContext HandlerContext) (string, EndpointCallb
 	}
 }
 
+func checkRequestAuth(w http.ResponseWriter, r *http.Request, logger Logger, requestId int64, userId string) (string, bool) {
+	token := r.Header.Get("Authorization")
+	makeCutsetFunc := func(cutset string) func(rune) bool {
+		return func(r rune) bool { return strings.IndexRune(cutset, unicode.ToLower(r)) >= 0 }
+	}
+	if (token == "") || !strings.HasPrefix(strings.ToLower(token), "bearer ") {
+		writeHeader(w, r, requestId, http.StatusBadRequest, logger)
+		return "", false
+	}
+	token = strings.TrimLeftFunc(token, makeCutsetFunc("bearer "))
+	if token != "testMode" { //For tests
+		user, err, httpCode := verifyTokenId(token)
+		userId = user
+		if err != nil {
+			log.Println("verifyTokenId() error:", err)
+			writeHeader(w, r, requestId, httpCode, logger)
+			return "", false
+		}
+	}
+	return userId, true
+}
+
 func handlerCashpointCreate(handlerContext HandlerContext) (string, EndpointCallback) {
 	return "/cashpoint", func(w http.ResponseWriter, r *http.Request) {
 		logger := handlerContext.Logger()
@@ -264,12 +288,34 @@ func handlerCashpointCreate(handlerContext HandlerContext) (string, EndpointCall
 			"requestId": strconv.FormatInt(requestId, 10),
 		})
 
+		userId := "0"
+		userId, passed := checkRequestAuth(w, r, logger, requestId, userId)
+		if !passed { // token check failed
+			return
+		}
 		jsonStr, err := getRequestJsonStr(r, context)
 		if err != nil {
 			writeHeader(w, r, requestId, http.StatusBadRequest, logger)
 			return
 		}
 
+		var parsedReq map[string]interface{}
+		err = json.Unmarshal([]byte(jsonStr), &parsedReq)
+		if err != nil {
+			log.Printf("json decode error: %v => %s", err, string(jsonStr))
+			writeHeader(w, r, requestId, http.StatusBadRequest, logger)
+			return
+		}
+		if len(parsedReq["user_id"].(string)) > 2 { //For tests. Condition must be deleted in release!
+			parsedReq["user_id"] = userId
+		}
+		jsonBytes, err := json.Marshal(parsedReq)
+		if err != nil {
+			log.Println("json encode error:", err)
+			writeHeader(w, r, requestId, http.StatusBadRequest, logger)
+			return
+		}
+		jsonStr = string(jsonBytes)
 		logger.logRequest(w, r, requestId, jsonStr)
 
 		resp, err := handlerContext.Tnt().Call("cashpointProposePatch", []interface{}{jsonStr})
@@ -309,6 +355,12 @@ func handlerCashpointDelete(handlerContext HandlerContext) (string, EndpointCall
 			"requestId":   strconv.FormatInt(requestId, 10),
 			"cashPointId": cashPointIdStr,
 		})
+
+		userId := "0"
+		userId, pass := checkRequestAuth(w, r, logger, requestId, userId)
+		if !pass {
+			return
+		}
 
 		cashPointId, err := strconv.ParseUint(cashPointIdStr, 10, 64)
 		if err != nil {
@@ -355,6 +407,12 @@ func handlerCashpointPatches(handlerContext HandlerContext) (string, EndpointCal
 			"requestId":   strconv.FormatInt(requestId, 10),
 			"cashPointId": cashPointIdStr,
 		})
+
+		userId := "0"
+		userId, pass := checkRequestAuth(w, r, logger, requestId, userId)
+		if !pass {
+			return
+		}
 
 		cashPointId, err := strconv.ParseUint(cashPointIdStr, 10, 64)
 		if err != nil {

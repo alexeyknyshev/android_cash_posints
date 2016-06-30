@@ -6,9 +6,9 @@ services:
       dockerfile: docker/dockerfile_cpsrv
     volumes:
       - ./data/banks:/var/lib/cpsrv/data/banks:ro
+      - ./data/GoogleAuth.html:/usr/data/GoogleAuth.html:ro
     depends_on:
       - tarantool
-    command: ["cpsrv", "/etc/cpsrv/config.json"]
     networks:
       cpnet:
     ports:

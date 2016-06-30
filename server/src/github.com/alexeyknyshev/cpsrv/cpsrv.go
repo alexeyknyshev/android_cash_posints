@@ -11,11 +11,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 )
 
 const SERVER_DEFAULT_CONFIG = "config.json"
+const GOOGLE_AUTH_PATH = "../data/GoogleAuth.html"
 
 type ServerConfig struct {
 	TownsDataBase      string `json:"TownsDataBase"`
@@ -192,6 +194,50 @@ func handlerPing(handlerContext HandlerContext) (string, EndpointCallback) {
 	}
 }
 
+func handlerGoogleAuth(handlerContext HandlerContext, htmlCode []byte) (string, EndpointCallback) {
+	return "/", func(w http.ResponseWriter, r *http.Request) {
+		logger := handlerContext.Logger()
+		requestId := int64(1)
+		logger.logRequest(w, r, requestId, "")
+		writeResponse(w, r, requestId, string(htmlCode), logger)
+	}
+}
+
+func verifyTokenId(token string) (sub string, err error, httpCode int) {
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" + token)
+	if err != nil {
+		log.Println("Failed to calling the tokeninfo endpoint:", err)
+		httpCode = http.StatusBadGateway
+		return "", err, httpCode
+	}
+	defer resp.Body.Close()
+	jsonResp, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Failed to read response:", err)
+		httpCode = http.StatusInternalServerError
+		return "", err, httpCode
+	}
+	var parsedResp map[string]interface{}
+	err = json.Unmarshal(jsonResp, &parsedResp)
+	if err != nil {
+		log.Println("json decode error:", err)
+		return "", err, http.StatusBadRequest
+	}
+
+	if parsedResp["error_description"] != nil {
+		str, _ := parsedResp["error_description"].(string)
+		log.Println("error_description:", str)
+		return "", err, http.StatusBadRequest
+	}
+	if sub, success := (parsedResp["sub"]).(string); !success {
+		err = errors.New("failed interface to string convertation")
+		log.Println(err)
+		return "", err, http.StatusBadRequest
+	} else {
+		return sub, err, http.StatusOK
+	}
+}
+
 func main() {
 	log.SetFlags(log.Flags() | log.Lmicroseconds)
 
@@ -221,7 +267,14 @@ func main() {
 	if serverConfig.TestingMode {
 		log.Printf("WARNING: Server started is TESTING mode! Make sure it is not prod server.")
 	}
-
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	htmlCode, err := ioutil.ReadFile(dir + "/" + GOOGLE_AUTH_PATH)
+	if err != nil {
+		log.Fatal("Failed to open GoogleAuth.html:", err)
+	}
 	handlerContext, err := makeHandlerContext(&serverConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -247,6 +300,7 @@ func main() {
 	router.HandleFunc(handlerBanksBatch(handlerContext)).Methods("POST")
 	router.HandleFunc(handlerNearbyCashPoints(handlerContext)).Methods("POST")
 	router.HandleFunc(handlerNearbyClusters(handlerContext)).Methods("POST")
+	router.HandleFunc(handlerGoogleAuth(handlerContext, htmlCode)).Methods("GET")
 
 	if serverConfig.TestingMode {
 		router.HandleFunc(handlerCoordToQuadKey(handlerContext)).Methods("POST")
