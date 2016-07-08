@@ -20,10 +20,11 @@ import (
 )
 
 type TestRequest struct {
-	RequestType string
-	EndpointUrl string
-	HandlerUrl  string
-	Data        string
+	RequestType   string
+	EndpointUrl   string
+	HandlerUrl    string
+	Data          string
+	Authorization bool
 }
 
 type TestResponse struct {
@@ -114,6 +115,9 @@ func testRequest(request TestRequest, handler EndpointCallback) *httptest.Respon
 
 	req.Header.Add("Id", "1")
 
+	if request.Authorization {
+		req.Header.Add("Authorization", "Bearer testMode")
+	}
 	w := httptest.NewRecorder()
 	m := mux.NewRouter()
 	if request.HandlerUrl == "" {
@@ -396,6 +400,7 @@ type CashpointShort struct {
 	Additional     string   `json:"additional"`
 	Currency       []uint32 `json:"currency"`
 	CashIn         bool     `json:"cash_in"`
+	UserId         string   `json:"user_id,omitempty"`
 }
 
 type CashpointFull struct {
@@ -679,7 +684,7 @@ func TestQuadTreeBranch(t *testing.T) {
 // ======================================================================
 
 type CashpointCreateRequest struct {
-	UserId uint32         `json:"user_id"`
+	UserId string         `json:"user_id"`
 	Data   CashpointShort `json:"data"`
 }
 
@@ -788,19 +793,20 @@ func TestCashpointCreateSuccessful(t *testing.T) {
 		Currency:       []uint32{643},
 		CashIn:         true,
 	}
-
+	userId := "0"
 	reqData := CashpointCreateRequest{
-		UserId: 0, // TODO: check against real user
+		UserId: userId, // TODO: check against real user
 		Data:   cp,
 	}
 	reqJson, _ := json.Marshal(reqData)
 
 	url, handlerCreate := handlerCashpointCreate(hCtx)
 	request = TestRequest{
-		RequestType: "POST",
-		EndpointUrl: "/cashpoint",
-		HandlerUrl:  url,
-		Data:        string(reqJson),
+		RequestType:   "POST",
+		EndpointUrl:   "/cashpoint",
+		HandlerUrl:    url,
+		Data:          string(reqJson),
+		Authorization: true,
 	}
 	response, err = readResponse(testRequest(request, handlerCreate))
 	if err != nil {
@@ -835,6 +841,7 @@ func TestCashpointCreateSuccessful(t *testing.T) {
 
 	// extend cashpoint short data with returned id
 	cp.Id = uint32(cashpointId)
+	cp.UserId = userId
 	cpFull := CashpointFull{
 		CashpointShort: cp,
 		Version:        0,
@@ -893,9 +900,10 @@ func TestCashpointCreateSuccessful(t *testing.T) {
 	// now delete created cashpoint
 	url, handlerDelete := handlerCashpointDelete(hCtx)
 	request = TestRequest{
-		RequestType: "DELETE",
-		EndpointUrl: "/cashpoint/" + cashpointIdStr,
-		HandlerUrl:  url,
+		RequestType:   "DELETE",
+		EndpointUrl:   "/cashpoint/" + cashpointIdStr,
+		HandlerUrl:    url,
+		Authorization: true,
 	}
 
 	response, err = readResponse(testRequest(request, handlerDelete))
@@ -999,17 +1007,18 @@ func TestCashpointCreateWrongCoordinates(t *testing.T) {
 	}
 
 	reqData := CashpointCreateRequest{
-		UserId: 0, // TODO: check against real user
+		UserId: "0", // TODO: check against real user
 		Data:   cp,
 	}
 	reqJson, _ := json.Marshal(reqData)
 
 	url, handlerCreate := handlerCashpointCreate(hCtx)
 	request = TestRequest{
-		RequestType: "POST",
-		EndpointUrl: "/cashpoint",
-		HandlerUrl:  url,
-		Data:        string(reqJson),
+		RequestType:   "POST",
+		EndpointUrl:   "/cashpoint",
+		HandlerUrl:    url,
+		Data:          string(reqJson),
+		Authorization: true,
 	}
 
 	response, err = readResponse(testRequest(request, handlerCreate))
@@ -1080,7 +1089,7 @@ func TestCashpointCreateMissingRequredFields(t *testing.T) {
 	}
 
 	reqData := CashpointCreateRequest{
-		UserId: 0, // TODO: check against real user
+		UserId: "0", // TODO: check against real user
 		Data:   cp,
 	}
 	reqJson, _ := json.Marshal(reqData)
@@ -1098,10 +1107,11 @@ func TestCashpointCreateMissingRequredFields(t *testing.T) {
 
 	url, handlerCreate := handlerCashpointCreate(hCtx)
 	request := TestRequest{
-		RequestType: "POST",
-		EndpointUrl: "/cashpoint",
-		HandlerUrl:  url,
-		Data:        string(reqJson),
+		RequestType:   "POST",
+		EndpointUrl:   "/cashpoint",
+		HandlerUrl:    url,
+		Data:          string(reqJson),
+		Authorization: true,
 	}
 
 	response, err := readResponse(testRequest(request, handlerCreate))
@@ -1172,7 +1182,7 @@ func TestCashpointCreateApproveHack(t *testing.T) {
 	}
 
 	reqData := CashpointCreateRequest{
-		UserId: 0, // TODO: check against real user
+		UserId: "0", // TODO: check against real user
 		Data:   cp,
 	}
 	reqJson, _ := json.Marshal(reqData)
@@ -1190,10 +1200,11 @@ func TestCashpointCreateApproveHack(t *testing.T) {
 
 	url, handlerCreate := handlerCashpointCreate(hCtx)
 	request := TestRequest{
-		RequestType: "POST",
-		EndpointUrl: "/cashpoint",
-		HandlerUrl:  url,
-		Data:        string(reqJson),
+		RequestType:   "POST",
+		EndpointUrl:   "/cashpoint",
+		HandlerUrl:    url,
+		Data:          string(reqJson),
+		Authorization: true,
 	}
 
 	response, err := readResponse(testRequest(request, handlerCreate))
@@ -1241,15 +1252,16 @@ func TestCashpointEdit(t *testing.T) {
 	cpPatch["type"] = "atm"
 
 	cpReqPayload := make(map[string]interface{})
-	cpReqPayload["user_id"] = 0 // TODO: user_id passing
+	cpReqPayload["user_id"] = "0" // TODO: user_id passing
 	cpReqPayload["data"] = cpPatch
 
 	req, _ := json.Marshal(cpReqPayload)
 	url, handlerEdit := handlerCashpointCreate(hCtx)
 	requestEdit := TestRequest{
-		RequestType: "POST",
-		EndpointUrl: url,
-		Data:        string(req),
+		RequestType:   "POST",
+		EndpointUrl:   url,
+		Data:          string(req),
+		Authorization: true,
 	}
 
 	response, err := readResponse(testRequest(requestEdit, handlerEdit))
@@ -1323,9 +1335,10 @@ func TestCashpointEdit(t *testing.T) {
 
 	url, handlerPatches := handlerCashpointPatches(hCtx)
 	request = TestRequest{
-		RequestType: "GET",
-		EndpointUrl: "/cashpoint/" + strconv.FormatUint(uint64(cpId), 10) + "/patches",
-		HandlerUrl:  url,
+		RequestType:   "GET",
+		EndpointUrl:   "/cashpoint/" + strconv.FormatUint(uint64(cpId), 10) + "/patches",
+		HandlerUrl:    url,
+		Authorization: true,
 	}
 
 	response, err = readResponse(testRequest(request, handlerPatches))

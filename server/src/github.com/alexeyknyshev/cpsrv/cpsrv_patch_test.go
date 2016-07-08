@@ -32,7 +32,7 @@ type PatchRequest struct {
 
 type TestPatchReq struct {
 	Data   PatchRequest `json:"data"`
-	UserId uint         `json:"user_id"`
+	UserId string       `json:"user_id"`
 }
 
 func getPatchExampleNewCP() *PatchRequest {
@@ -99,7 +99,11 @@ func comparePatches(t *testing.T, resPatch []interface{}, expectedPatch []interf
 
 	fields := []string{"patch id", "cashpoint id", "user_id", "data", "timestamp"}
 	for i, vol := range expectedPatch {
-		if i == 3 { //PATCH_DATA
+		if i == 2 {
+			if resPatch[i].(string) != vol.(string) {
+				t.Error("comparePatches: fields", fields[i], "don't match")
+			}
+		} else if i == 3 { //PATCH_DATA
 			checkJsonResponse(t, []byte(vol.(string)), []byte(resPatch[i].(string)))
 		} else if i != 4 { //don't check timestamp
 			if resPatch[i].(uint64) != vol.(uint64) {
@@ -112,10 +116,11 @@ func comparePatches(t *testing.T, resPatch []interface{}, expectedPatch []interf
 func invokeTaranPatchFuncs(t *testing.T, hCtx *HandlerContextStruct, requestJson []byte) (uint32, uint64) {
 	url, handlerCreate := handlerCashpointCreate(hCtx)
 	request := TestRequest{
-		RequestType: "POST",
-		EndpointUrl: "/cashpoint",
-		HandlerUrl:  url,
-		Data:        string(requestJson),
+		RequestType:   "POST",
+		EndpointUrl:   "/cashpoint",
+		HandlerUrl:    url,
+		Data:          string(requestJson),
+		Authorization: true,
 	}
 	response, err := readResponse(testRequest(request, handlerCreate))
 	if err != nil {
@@ -153,7 +158,7 @@ func TestPatchCreateNewCP(t *testing.T) {
 	patchReq := getPatchExampleNewCP()
 	request := TestPatchReq{
 		Data:   *patchReq,
-		UserId: 1,
+		UserId: "1",
 	}
 	requestJson, err := json.Marshal(request)
 	if err != nil {
@@ -181,7 +186,7 @@ func TestPatchCreateNewCP(t *testing.T) {
 	resp, err := hCtx.Tnt().Call("getCashpointPatchByPatchId", []interface{}{lastPatch})
 	resPatch := resp.Data[0].([]interface{})
 	expPatchData := "{\"id\":" + strconv.FormatInt(int64(CpId), 10) + "}"
-	expectedPatch := []interface{}{uint64(lastPatch), CpId, uint64(request.UserId), expPatchData, uint64(0)}
+	expectedPatch := []interface{}{uint64(lastPatch), CpId, request.UserId, expPatchData, uint64(0)}
 	comparePatches(t, resPatch, expectedPatch)
 	fmt.Println("Delete cashpoint ", CpId)
 	resp, err = hCtx.Tnt().Call("deleteCashpointById", []interface{}{CpId})
@@ -198,7 +203,7 @@ func TestPatchChangeExistCP(t *testing.T) {
 	patchReq, expPatchData := getPatchExampleExistCP()
 	request := TestPatchReq{
 		Data:   *patchReq,
-		UserId: 1,
+		UserId: "1",
 	}
 	requestJson, err := json.Marshal(request)
 	if err != nil {
@@ -224,7 +229,7 @@ func TestPatchChangeExistCP(t *testing.T) {
 	}
 	resp, err := hCtx.Tnt().Call("getCashpointPatchByPatchId", []interface{}{lastPatch})
 	resPatch := resp.Data[0].([]interface{})
-	expectedPatch := []interface{}{uint64(lastPatch), CpId, uint64(request.UserId), expPatchData, uint64(0)}
+	expectedPatch := []interface{}{uint64(lastPatch), CpId, request.UserId, expPatchData, uint64(0)}
 	comparePatches(t, resPatch, expectedPatch)
 
 	fmt.Println("response patch:\n", resPatch)
@@ -238,7 +243,7 @@ func TestPatchChangeExistCP(t *testing.T) {
 
 type VotePatch struct {
 	PatchId uint32 `json:"patch_id,omitempty"`
-	UserId  uint32 `json:"user_id"`
+	UserId  string `json:"user_id"`
 	Score   uint32 `json:"score"`
 }
 
@@ -287,7 +292,7 @@ func TestPatchOneUserVoting(t *testing.T) {
 	patchReq := getPatchExampleNewCP()
 	request := TestPatchReq{
 		Data:   *patchReq,
-		UserId: 1,
+		UserId: "1",
 	}
 	requestJson, err := json.Marshal(request)
 	if err != nil {
@@ -317,7 +322,7 @@ func TestPatchOneUserVoting(t *testing.T) {
 	fmt.Println("response patch:\n", resPatch)
 	voteReq := VotePatch{
 		PatchId: lastPatch,
-		UserId:  2,
+		UserId:  "2",
 		Score:   1,
 	}
 	voteJsonReq, _ := json.Marshal(voteReq)
@@ -353,7 +358,7 @@ func TestPatchVotingByDiffUsers(t *testing.T) {
 	patchReq := getPatchExampleNewCP()
 	request := TestPatchReq{
 		Data:   *patchReq,
-		UserId: 1,
+		UserId: "1",
 	}
 	requestJson, err := json.Marshal(request)
 	if err != nil {
@@ -387,7 +392,7 @@ func TestPatchVotingByDiffUsers(t *testing.T) {
 	for i, _ := range voteReqs {
 		voteReqs[i].PatchId = lastPatch
 		voteReqs[i].Score = 1
-		voteReqs[i].UserId = uint32(i + 1)
+		voteReqs[i].UserId = strconv.FormatInt(int64(i+1), 10)
 		voteJsonReqs[i], _ = json.Marshal(voteReqs[i])
 		fmt.Println("request vote №", i, ":", voteReqs[i])
 	}
