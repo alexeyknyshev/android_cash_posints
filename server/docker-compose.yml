@@ -6,13 +6,13 @@ services:
       dockerfile: docker/dockerfile_cpsrv
     volumes:
       - ./data/banks:/var/lib/cpsrv/data/banks:ro
+      - ./data/GoogleAuth.html:/usr/data/GoogleAuth.html:ro
     depends_on:
       - tarantool
-    command: ["cpsrv", "/etc/cpsrv/config.json"]
     networks:
-      cpnet:
-    ports:
-      - "8080:80"
+      - front-tier
+      - back-tier
+
   tarantool:
     image: tarantool/tarantool
     volumes:
@@ -23,6 +23,18 @@ services:
       - ./tnt_workdir/wal:/var/lib/cpsrv/wal
     command: ["tarantool", "/var/lib/cpsrv/lua/init.lua"]
     networks:
-      cpnet:
+      - back-tier
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./data/GoogleAuth.html:/usr/share/nginx/html/GoogleAuth.html:ro
+      - ./data/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - cpsrv
+    networks:
+      - front-tier
+    ports:
+      - "8080:80"
 networks:
-  cpnet:
+  front-tier:
+  back-tier:
