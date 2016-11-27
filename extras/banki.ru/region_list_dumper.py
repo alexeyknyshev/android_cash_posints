@@ -4,6 +4,8 @@ import os, sys, sqlite3
 import json
 import requests
 import time
+import struct
+import unicodedata
 
 def getNameTrFromRegionUrl(regionUrl):
   nameTr = regionUrl
@@ -205,23 +207,12 @@ def resolveTownNameDup(townsList, regionsMap):
         print("Error: Dup town.name for town without region_id\n" + str(town.name))
 
 def getRegionNameByCoord(longitude, latitude):
-  geoUrlMask = "http://geocode-maps.yandex.ru/1.x/?format=json&geocode=%f,%f&lang=ru-RU&key=e5994ba3-c5d2-4158-ab34-65800ab35e27"
+  geoUrlMask = "http://www.mapquestapi.com/geocoding/v1/reverse?key=h0SsXqvIhbnHQx8iZrek7VjnVOdEDC4u&location=%f,%f"
   url = geoUrlMask % (longitude, latitude)
   r = requests.get(url)
   responseJson = r.json()
-
-  featureMember = responseJson['response']['GeoObjectCollection']['featureMember']
-  for geoObj in featureMember:
-    try:
-      geoObjInternal = geoObj['GeoObject']
-      addrDet = geoObjInternal['metaDataProperty']['GeocoderMetaData']['AddressDetails']
-      return addrDet['Country']['AdministrativeArea']['AdministrativeAreaName']
-    except KeyError:
-      continue
-
-  errStr = "AdministrativeAreaName has not found in geocode response:\n\trequest: " + url + "\n\tresponse:\n" + str(responseJson)
-  print(errStr, file=sys.stderr)
-  return 0
+  regionName = responseJson['results'][0]['locations'][0]['adminArea3'].encode().decode('unicode-escape')
+  return regionName
 
 def getRegionIdByName(regionsMap, regionName, index):
   for (region_id, region_name) in regionsMap.items():
@@ -301,7 +292,7 @@ if __name__ == "__main__":
   currentIndex = 500
   currentIndexStep = 500
 
-  for t in data:
+  for t in data[:5]:
     row = makeDBRow(t)
 
     townId = int(row[0])
